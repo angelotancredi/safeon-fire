@@ -22,6 +22,7 @@ const RadioButton = () => {
     const [keypadRoom, setKeypadRoom] = useState(null);
     const [inputPin, setInputPin] = useState('');
     const [pinError, setPinError] = useState(false);
+    const [keypadMode, setKeypadMode] = useState('JOIN'); // 'JOIN' | 'CREATE'
     const animationFrameRef = useRef(null);
     const squelchStartAudioRef = useRef(null);
     const squelchStopAudioRef = useRef(null);
@@ -386,6 +387,7 @@ const RadioButton = () => {
                                                 whileTap={{ scale: 0.98 }}
                                                 onClick={() => {
                                                     if (password) {
+                                                        setKeypadMode('JOIN');
                                                         setKeypadRoom(room);
                                                         setIsKeypadOpen(true);
                                                         setInputPin('');
@@ -465,15 +467,18 @@ const RadioButton = () => {
                                             <div className="flex space-x-2">
                                                 <div className="relative flex-1 group">
                                                     <Terminal className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-tactical-muted group-focus-within:text-tactical-accent transition-colors" />
-                                                    <input
-                                                        type="password"
-                                                        pattern="\d*"
-                                                        maxLength={4}
-                                                        value={newRoomPin}
-                                                        onChange={(e) => setNewRoomPin(e.target.value.replace(/\D/g, ''))}
-                                                        placeholder="비밀번호 4자리 숫자"
-                                                        className="w-full h-14 bg-tactical-surface border border-tactical-border rounded-2xl pl-12 pr-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-tactical-accent/10 focus:border-tactical-accent focus:bg-white transition-all text-center"
-                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setKeypadMode('CREATE');
+                                                            setKeypadRoom({ id: newRoomName || 'NEW CHANNEL' });
+                                                            setInputPin('');
+                                                            setIsKeypadOpen(true);
+                                                        }}
+                                                        className="w-full h-14 bg-tactical-surface border border-tactical-border rounded-2xl pl-12 pr-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-tactical-accent/10 focus:border-tactical-accent focus:bg-white transition-all text-center flex items-center justify-center"
+                                                    >
+                                                        {newRoomPin ? '● ● ● ●' : <span className="text-tactical-muted opacity-60">비밀번호 설정</span>}
+                                                    </button>
                                                 </div>
                                                 <button
                                                     type="submit"
@@ -523,9 +528,15 @@ const RadioButton = () => {
                         >
                             <div className="flex flex-col items-center space-y-6">
                                 <div className="text-center space-y-2">
-                                    <h3 className="text-lg font-bold text-tactical-fg uppercase tracking-tight">SECURE ACCESS</h3>
-                                    <p className="text-[12px] text-tactical-accent font-bold tracking-tight">보안을 위해 비밀번호 4자리를 입력하세요</p>
-                                    <p className="text-[10px] text-tactical-muted font-medium uppercase tracking-widest">{keypadRoom?.id.split('@@')[0]}</p>
+                                    <h3 className="text-lg font-bold text-tactical-fg uppercase tracking-tight">
+                                        {keypadMode === 'JOIN' ? 'SECURE ACCESS' : 'PIN SETUP'}
+                                    </h3>
+                                    <p className="text-[12px] text-tactical-accent font-bold tracking-tight">
+                                        {keypadMode === 'JOIN' ? '보안을 위해 비밀번호 4자리를 입력하세요' : '새 채널의 보안 비밀번호를 설정하세요'}
+                                    </p>
+                                    <p className="text-[10px] text-tactical-muted font-medium uppercase tracking-widest">
+                                        {keypadMode === 'JOIN' ? keypadRoom?.id.split('@@')[0] : (newRoomName || 'NEW CHANNEL')}
+                                    </p>
                                 </div>
 
                                 {/* PIN Display - Masked with dots */}
@@ -571,21 +582,29 @@ const RadioButton = () => {
 
                                                     // Auto-verification after 4th digit
                                                     if (nextPin.length === 4) {
-                                                        const [_, correctPin] = keypadRoom.id.split('@@');
-                                                        if (nextPin === correctPin) {
-                                                            // Success logic
-                                                            setTimeout(() => {
-                                                                updateSettings({ roomId: keypadRoom.id });
-                                                                startSystem(keypadRoom.id);
-                                                                setIsKeypadOpen(false);
-                                                                setIsModalOpen(false);
-                                                            }, 150);
+                                                        if (keypadMode === 'JOIN') {
+                                                            const [_, correctPin] = keypadRoom.id.split('@@');
+                                                            if (nextPin === correctPin) {
+                                                                // Success logic
+                                                                setTimeout(() => {
+                                                                    updateSettings({ roomId: keypadRoom.id });
+                                                                    startSystem(keypadRoom.id);
+                                                                    setIsKeypadOpen(false);
+                                                                    setIsModalOpen(false);
+                                                                }, 150);
+                                                            } else {
+                                                                // Error logic
+                                                                setTimeout(() => {
+                                                                    setPinError(true);
+                                                                    setInputPin('');
+                                                                }, 400);
+                                                            }
                                                         } else {
-                                                            // Error logic
+                                                            // CREATE Mode Logic
                                                             setTimeout(() => {
-                                                                setPinError(true);
-                                                                setInputPin('');
-                                                            }, 400);
+                                                                setNewRoomPin(nextPin);
+                                                                setIsKeypadOpen(false);
+                                                            }, 150);
                                                         }
                                                     }
                                                 }
