@@ -362,7 +362,7 @@ const RadioButton = () => {
                                             whileTap={{ scale: 0.98 }}
                                             onClick={() => {
                                                 updateSettings({ roomId: room.id });
-                                                startSystem();
+                                                // startSystem() will be called by useEffect in WebRTCContext
                                                 setIsModalOpen(false);
                                             }}
                                             className="w-full p-4 rounded-2xl border border-tactical-border hover:border-tactical-accent hover:bg-tactical-accent/5 transition-all text-left flex items-center justify-between group"

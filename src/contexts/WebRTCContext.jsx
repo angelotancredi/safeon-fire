@@ -33,7 +33,12 @@ export const WebRTCProvider = ({ children }) => {
     // v91: Load settings from localStorage or use defaults
     const [settings, setSettings] = useState(() => {
         const saved = localStorage.getItem('safeon-settings');
-        return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
+        let parsed = saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
+        // v94: Sanitize roomId on load
+        if (!parsed.roomId || typeof parsed.roomId !== 'string' || parsed.roomId.trim().length === 0) {
+            parsed.roomId = DEFAULT_SETTINGS.roomId;
+        }
+        return parsed;
     });
 
     const [peers, setPeers] = useState([]);
@@ -58,6 +63,7 @@ export const WebRTCProvider = ({ children }) => {
     const connectionsRef = useRef({});
     const remoteAudiosRef = useRef({});
     const myIdRef = useRef(`node-${Math.random().toString(36).substr(2, 6)}`);
+    const lastJoinedRoomRef = useRef(null); // v94: Loop prevention
     const audioContextRef = useRef(null);
     const analyserRef = useRef(null);
     const remoteAnalysersRef = useRef({});
@@ -341,10 +347,17 @@ export const WebRTCProvider = ({ children }) => {
 
     const startSystem = useCallback(async () => {
         if (status === 'STARTING') return;
+
+        // v94: Don't restart if already connected to THIS room
+        if (status === 'CONNECTED' && lastJoinedRoomRef.current === settings.roomId) {
+            return;
+        }
+
         addLog('JOIN: Connection Sequence Started');
         await cleanup();
         setStatus('STARTING');
         setError(null);
+        lastJoinedRoomRef.current = settings.roomId;
 
         // v93: Increased timeout to 16s (2x upgrade)
         timeoutRef.current = setTimeout(() => {
@@ -536,11 +549,18 @@ export const WebRTCProvider = ({ children }) => {
 
         } catch (err) {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
-            // v94: Detailed Error Logging
+            // v94: Detailed Error Logging & Graceful Handling
             const errorDetail = `${err.name}: ${err.message}`;
             addLog(`BOOT FAIL: ${errorDetail}`);
-            setError(`BOOT FAIL: ${errorDetail}`);
+
+            if (err.name === 'NotAllowedError') {
+                setError('PERMISSION_DENIED: 마이크 권한이 필요합니다. 브라우저 설정에서 권한을 허용해주세요.');
+            } else {
+                setError(`BOOT FAIL: ${errorDetail}`);
+            }
+
             setStatus('OFFLINE');
+            lastJoinedRoomRef.current = null; // Reset on failure
         }
     }, [cleanup, initiateConnection, createPC, status, addLog, syncPeersWithPusher, removePeer, settings.roomId, settings.micSens]);
 
@@ -638,8 +658,8 @@ export const WebRTCProvider = ({ children }) => {
 
     // v91: Auto-reconnect when roomId changes
     useEffect(() => {
-        // v93: Be more aggressive - if roomId changes, we always want to start/restart
-        if (status !== 'STARTING') {
+        // v94: Only trigger if the room actually changed from what we last tried
+        if (settings.roomId !== lastJoinedRoomRef.current && status !== 'STARTING') {
             addLog(`[System] Room ID Changed -> ${settings.roomId}. Reconnecting...`);
             startSystem();
         }
@@ -654,6 +674,12 @@ export const WebRTCProvider = ({ children }) => {
 
     const updateSettings = useCallback((newSettings) => {
         setSettings(prev => {
+            // v94: Sanitize new roomId if provided
+            if (newSettings.roomId !== undefined) {
+                if (!newSettings.roomId || typeof newSettings.roomId !== 'string' || newSettings.roomId.trim().length === 0) {
+                    newSettings.roomId = DEFAULT_SETTINGS.roomId;
+                }
+            }
             const updated = { ...prev, ...newSettings };
             localStorage.setItem('safeon-settings', JSON.stringify(updated));
             return updated;
