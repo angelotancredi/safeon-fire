@@ -138,6 +138,8 @@ const RadioButton = () => {
                                         setShowDebug(!showDebug);
                                     } else {
                                         setIsModalOpen(true);
+                                        setNewRoomName('');
+                                        setNewRoomPin('');
                                         fetchRooms();
                                     }
                                 }}
@@ -446,10 +448,13 @@ const RadioButton = () => {
                                     <form onSubmit={(e) => {
                                         e.preventDefault();
                                         if (newRoomName.trim() && newRoomPin.length === 4) {
-                                            const fullId = `${newRoomName.trim()}@@${newRoomPin}`;
+                                            const formattedName = newRoomName.trim().toLowerCase().replace(/\s+/g, '-');
+                                            const fullId = `${formattedName}@@${newRoomPin}`;
                                             updateSettings({ roomId: fullId });
                                             startSystem(fullId, true);
                                             setIsModalOpen(false);
+                                            setNewRoomName('');
+                                            setNewRoomPin('');
                                         }
                                     }} className="space-y-5">
                                         <div className="space-y-4">

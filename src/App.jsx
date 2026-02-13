@@ -3,7 +3,7 @@ import RadioButton from './components/RadioButton';
 import MapView from './components/MapView';
 import SettingsView from './components/SettingsView';
 import { WebRTCProvider, useWebRTC } from './contexts/WebRTCContext';
-import { Wifi, Battery, MapPin, Menu, User, Bug, AlertCircle, RotateCw, Radio } from 'lucide-react';
+import { Wifi, Battery, MapPin, Menu, User, Users, Bug, AlertCircle, RotateCw, Radio } from 'lucide-react';
 
 // v86: Restored Tactical UI + Global Context
 const BUILD_ID = "BUILD-2026-02-11-V86";
@@ -109,11 +109,7 @@ function AppContent() {
         <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(900px_400px_at_50%_0%,rgba(255,87,34,0.08),transparent_60%)]" />
         <div className="relative flex-1 min-h-0 flex flex-col">
           {activeTab === 'RADIO' && <RadioButton />}
-          {activeTab === 'SQUAD' && (
-            <div className="flex-1 overflow-y-auto px-4 pt-5 pb-20 custom-scrollbar">
-              <SquadView />
-            </div>
-          )}
+          {activeTab === 'SQUAD' && <SquadView />}
           {activeTab === 'MAP' && <MapView />}
           {activeTab === 'LOG' && (
             <div className="flex-1 flex flex-col items-center justify-center text-tactical-muted text-[10px] uppercase tracking-[0.4em] opacity-40">
