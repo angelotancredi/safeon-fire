@@ -51,6 +51,23 @@ const RadioButton = () => {
         else setStatus('DISCONNECTED');
     }, [error, peers, isConnected, peerStatus, isRecording]);
 
+    // Back button support for modals
+    useEffect(() => {
+        const handlePopState = () => {
+            if (isModalOpen || isKeypadOpen) {
+                setIsModalOpen(false);
+                setIsKeypadOpen(false);
+            }
+        };
+
+        if (isModalOpen || isKeypadOpen) {
+            window.history.pushState({ modal: true }, "");
+        }
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [isModalOpen, isKeypadOpen]);
+
     // v79: Differentiated squelch sounds based on action type
     const playSquelch = (type = 'start') => {
         try {
@@ -253,8 +270,8 @@ const RadioButton = () => {
                                 <div className="absolute inset-0 bg-white/95 flex items-center justify-center z-10">
                                     <div className="flex flex-col items-center">
                                         <div className="w-8 h-8 border-4 border-tactical-accent border-t-transparent rounded-full animate-spin mb-3" />
-                                        <span className="text-[14px] font-black text-tactical-danger animate-pulse bg-yellow-200 px-2 rounded tracking-widest uppercase">
-                                            DEPLOY_TEST_V102
+                                        <span className="text-[10px] font-bold text-tactical-fg tracking-widest uppercase">
+                                            INITIALIZING...
                                         </span>
                                     </div>
                                 </div>
@@ -290,7 +307,7 @@ const RadioButton = () => {
                                     animate={{ opacity: 0.3 }}
                                     className="text-[11px] font-bold text-tactical-muted tracking-[0.4em] uppercase"
                                 >
-                                    대기 중
+                                    STANDBY
                                 </motion.span>
                             ) : (
                                 <motion.div
@@ -418,59 +435,58 @@ const RadioButton = () => {
 
                             {/* Create Room Section - Always Visible and Prominent */}
                             <div className="p-6 bg-white border-t-2 border-tactical-accent/10 shadow-[0_-10px_30px_rgba(0,0,0,0.05)] sticky bottom-0 z-20">
-                                <form
-                                    onSubmit={(e) => {
+                                {/* Channel Creation Section */}
+                                <div className="mt-8 pt-8 border-t border-tactical-border">
+                                    <h4 className="text-[11px] font-bold text-tactical-muted uppercase tracking-[0.2em] mb-6 flex items-center">
+                                        <Plus className="w-3.5 h-3.5 mr-2" /> 새 채널 만들기
+                                    </h4>
+
+                                    <form onSubmit={(e) => {
                                         e.preventDefault();
                                         if (newRoomName.trim() && newRoomPin.length === 4) {
-                                            const formattedName = newRoomName.trim().toLowerCase().replace(/\s+/g, '-');
-                                            const fullRoomId = `${formattedName}@@${newRoomPin}`;
-                                            updateSettings({ roomId: fullRoomId });
-                                            startSystem(fullRoomId, true); // v97: Setting as leader
+                                            const fullId = `${newRoomName.trim()}@@${newRoomPin}`;
+                                            updateSettings({ roomId: fullId });
+                                            startSystem(fullId, true);
                                             setIsModalOpen(false);
-                                            setNewRoomName('');
-                                            setNewRoomPin('');
                                         }
-                                    }}
-                                    className="flex flex-col space-y-4"
-                                >
-                                    <div className="flex items-center justify-between px-1">
-                                        <span className="text-[10px] font-black text-tactical-accent tracking-[0.2em] uppercase">Create New Channel</span>
-                                        <Plus className="w-3 h-3 text-tactical-accent" />
-                                    </div>
-                                    <div className="flex flex-col space-y-2">
-                                        <div className="relative group">
-                                            <Hash className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-tactical-muted group-focus-within:text-tactical-accent transition-colors" />
-                                            <input
-                                                type="text"
-                                                value={newRoomName}
-                                                onChange={(e) => setNewRoomName(e.target.value)}
-                                                placeholder="채널 이름을 입력하세요"
-                                                className="w-full h-14 bg-tactical-surface border border-tactical-border rounded-2xl pl-12 pr-4 text-sm font-bold tracking-tight focus:outline-none focus:ring-4 focus:ring-tactical-accent/10 focus:border-tactical-accent focus:bg-white transition-all uppercase"
-                                            />
-                                        </div>
-                                        <div className="flex space-x-2">
-                                            <div className="relative flex-1 group">
-                                                <Terminal className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-tactical-muted group-focus-within:text-tactical-accent transition-colors" />
+                                    }} className="space-y-5">
+                                        <div className="space-y-4">
+                                            <div className="relative group">
+                                                <RadioTower className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-tactical-muted group-focus-within:text-tactical-accent transition-colors" />
                                                 <input
-                                                    type="password"
-                                                    pattern="\d*"
-                                                    maxLength={4}
-                                                    value={newRoomPin}
-                                                    onChange={(e) => setNewRoomPin(e.target.value.replace(/\D/g, ''))}
-                                                    placeholder="비밀번호 4자리 숫자"
-                                                    className="w-full h-14 bg-tactical-surface border border-tactical-border rounded-2xl pl-12 pr-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-tactical-accent/10 focus:border-tactical-accent focus:bg-white transition-all text-center"
+                                                    type="text"
+                                                    placeholder="채널 이름을 입력하세요"
+                                                    value={newRoomName}
+                                                    onChange={(e) => setNewRoomName(e.target.value)}
+                                                    className="w-full h-14 bg-tactical-surface border border-tactical-border rounded-2xl pl-12 pr-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-tactical-accent/10 focus:border-tactical-accent focus:bg-white transition-all"
                                                 />
                                             </div>
-                                            <button
-                                                type="submit"
-                                                disabled={!newRoomName.trim() || newRoomPin.length !== 4}
-                                                className="h-14 px-6 bg-tactical-accent text-white rounded-2xl font-black text-xs tracking-widest uppercase shadow-xl shadow-tactical-accent/30 active:scale-95 disabled:opacity-50 disabled:grayscale transition-all whitespace-nowrap"
-                                            >
-                                                채널 만들기
-                                            </button>
+
+                                            <div className="flex space-x-2">
+                                                <div className="relative flex-1 group">
+                                                    <Terminal className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-tactical-muted group-focus-within:text-tactical-accent transition-colors" />
+                                                    <input
+                                                        type="password"
+                                                        pattern="\d*"
+                                                        maxLength={4}
+                                                        value={newRoomPin}
+                                                        onChange={(e) => setNewRoomPin(e.target.value.replace(/\D/g, ''))}
+                                                        placeholder="비밀번호 4자리 숫자"
+                                                        className="w-full h-14 bg-tactical-surface border border-tactical-border rounded-2xl pl-12 pr-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-tactical-accent/10 focus:border-tactical-accent focus:bg-white transition-all text-center"
+                                                    />
+                                                </div>
+                                                <button
+                                                    type="submit"
+                                                    disabled={!newRoomName.trim() || newRoomPin.length !== 4}
+                                                    className="h-14 px-6 bg-tactical-accent text-white rounded-2xl font-black text-xs tracking-widest uppercase shadow-xl shadow-tactical-accent/30 active:scale-95 disabled:opacity-50 disabled:grayscale transition-all whitespace-nowrap"
+                                                >
+                                                    만들기
+                                                </button>
+                                            </div>
                                         </div>
+
                                         <div className="flex items-center justify-between px-1">
-                                            <p className="text-[9px] text-tactical-muted font-bold tracking-widest uppercase opacity-60">Channels must have a 4-digit security PIN</p>
+                                            <p className="text-[9px] text-tactical-muted font-bold tracking-widest uppercase opacity-60">Security PIN required</p>
                                             <button
                                                 type="button"
                                                 onClick={() => setIsModalOpen(false)}
@@ -479,8 +495,8 @@ const RadioButton = () => {
                                                 취소
                                             </button>
                                         </div>
-                                    </div>
-                                </form>
+                                    </form>
+                                </div>
                             </div>
                         </motion.div>
                     </div>
@@ -499,9 +515,10 @@ const RadioButton = () => {
                             className="absolute inset-0 bg-tactical-fg/60 backdrop-blur-sm"
                         />
                         <motion.div
-                            initial={{ y: "100%" }}
-                            animate={{ y: 0 }}
-                            exit={{ y: "100%" }}
+                            initial={{ y: "100%", opacity: 0 }}
+                            animate={{ y: 0, opacity: 1 }}
+                            exit={{ y: "100%", opacity: 0 }}
+                            transition={{ type: "spring", damping: 25, stiffness: 200 }}
                             className="bg-white w-full max-w-sm rounded-[40px] shadow-2xl overflow-hidden relative z-10 p-8"
                         >
                             <div className="flex flex-col items-center space-y-6">

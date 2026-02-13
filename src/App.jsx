@@ -126,7 +126,7 @@ function AppContent() {
       </main>
 
       {/* Bottom Navigation: Restored High-Fidelity Style */}
-      <footer className="grid grid-cols-5 gap-1 px-2 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+8px)] bg-white border-t border-tactical-border shrink-0">
+      <footer className="grid grid-cols-4 gap-1 px-2 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+8px)] bg-white border-t border-tactical-border shrink-0">
         <NavButton
           icon={<Radio className="w-5 h-5" />}
           label="RADIO"
@@ -138,12 +138,6 @@ function AppContent() {
           label="SQUAD"
           active={activeTab === 'SQUAD'}
           onClick={() => setActiveTab('SQUAD')}
-        />
-        <NavButton
-          icon={<MapPin className="w-5 h-5" />}
-          label="MAP"
-          active={activeTab === 'MAP'}
-          onClick={() => setActiveTab('MAP')}
         />
         <NavButton
           icon={<Wifi className="w-5 h-5" />}
