@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useRef, useState, useCallback, useEffect } from 'react';
 import Pusher from 'pusher-js';
 
-const WebRTCContext = createContext();
+export const WebRTCContext = createContext();
 
 // --- CONFIGURATION ---
 const DEFAULT_SETTINGS = {
