@@ -184,6 +184,7 @@ const SquadView = () => {
 
   const formatId = (id) => {
     if (!id) return "...";
+    if (id.startsWith('채널-')) return id;
     const cleanId = id.split('-').pop();
     return `삼정-${cleanId.slice(0, 4).toUpperCase()}`;
   };

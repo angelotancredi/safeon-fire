@@ -63,7 +63,7 @@ export const WebRTCProvider = ({ children }) => {
     const localStreamRef = useRef(null);
     const connectionsRef = useRef({});
     const remoteAudiosRef = useRef({});
-    const myIdRef = useRef(`채널-${Math.random().toString(36).substr(2, 4).toUpperCase()}`);
+    const myIdRef = useRef(`채널-${Math.floor(1000 + Math.random() * 9000)}`);
     const lastJoinedRoomRef = useRef(null); // v94: Loop prevention
     const audioContextRef = useRef(null);
     const analyserRef = useRef(null);
@@ -348,40 +348,40 @@ export const WebRTCProvider = ({ children }) => {
         }
     }, [addLog, createPC]);
 
-    const startSystem = useCallback(async (manualRoomId = null, leaderStatus = false) => {
-        // v96: Use passed ID or falling back to current settings
-        const targetRoomId = manualRoomId || settings.roomId;
+    // v110: Refactored startSystem with explicit password support and Korean feedback
+    const startSystem = useCallback(async (manualRoomId = null, password = null, leaderStatus = false) => {
+        if (!manualRoomId) return;
 
-        if (status === 'STARTING') return;
+        // v110: Generate full ID with PIN separator
+        const finalRoomId = password ? `${manualRoomId}@@${password}` : manualRoomId;
+        const targetRoomId = finalRoomId;
 
-        // v94: Don't restart if already connected to THIS room
+        // v110: Simplified loop prevention
+        if (status === 'STARTING' && lastJoinedRoomRef.current === targetRoomId) return;
         lastJoinedRoomRef.current = targetRoomId;
 
-        // v109: Update roomId state immediately to reflect target room in UI (STG/Squad)
-        if (manualRoomId) {
-            updateSettings({ roomId: manualRoomId });
-        }
+        // v109/v110: Update UI state immediately
+        updateSettings({ roomId: targetRoomId });
 
-        const displayRoom = targetRoomId.split('@@')[0];
+        const displayRoom = manualRoomId; // Show clean name in logs
         addLog(`JOIN: ${displayRoom.toUpperCase()} Sequence Started`);
-        await cleanup();
 
-        // v109: Clear peers immediately to prevent "ghost" members from previous room
+        await cleanup();
         setPeers([]);
 
-        // v99/v100: Small delay to allow browser/pusher settlement after cleanup
         await new Promise(resolve => setTimeout(resolve, 500));
 
         setStatus('STARTING');
         setError(null);
-        setIsLeader(leaderStatus); // v97: Set leader status
+        setIsLeader(leaderStatus);
 
         addLog(`STEP 0: AUTH_TIMEOUT SET (30s)`);
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
         timeoutRef.current = setTimeout(() => {
             setStatus(prev => {
                 if (prev === 'STARTING') {
-                    addLog(`TIMEOUT: JOIN FAILED [${displayRoom.toUpperCase()}]`);
-                    setError('TIMEOUT: JOIN FAILED');
+                    addLog(`[경고] 접속 시간 초과: ${displayRoom}`);
+                    setError('접속 시간이 초과되었습니다. 네트워크를 확인하세요.');
                     cleanup();
                     return 'OFFLINE';
                 }

@@ -450,12 +450,10 @@ const RadioButton = () => {
                                         e.preventDefault();
                                         if (newRoomName.trim() && newRoomPin.length === 4) {
                                             setIsCreating(true);
-                                            const formattedName = newRoomName.trim().toLowerCase().replace(/\s+/g, '-');
-                                            const fullId = `${formattedName}@@${newRoomPin}`;
-
                                             // Delay modal close slightly to show feedback
                                             setTimeout(() => {
-                                                startSystem(fullId, true);
+                                                const formattedName = newRoomName.trim().toLowerCase().replace(/\s+/g, '-');
+                                                startSystem(formattedName, newRoomPin, true);
                                                 setIsModalOpen(false);
                                                 setIsCreating(false);
                                                 setNewRoomName('');
@@ -600,8 +598,8 @@ const RadioButton = () => {
                                                             if (nextPin === correctPin) {
                                                                 // Success logic
                                                                 setTimeout(() => {
-                                                                    updateSettings({ roomId: keypadRoom.id });
-                                                                    startSystem(keypadRoom.id);
+                                                                    const [rName, rPin] = keypadRoom.id.split('@@');
+                                                                    startSystem(rName, rPin);
                                                                     setIsKeypadOpen(false);
                                                                     setIsModalOpen(false);
                                                                 }, 150);
