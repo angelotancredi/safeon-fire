@@ -214,14 +214,24 @@ export const WebRTCProvider = ({ children }) => {
 
         const membersList = [];
         membersSource.each(member => {
-            if (member.id !== myIdRef.current) {
+            // v111: Ensure we only track peers that follow the "채널-XXXX" format
+            if (member.id !== myIdRef.current && member.id.startsWith('채널-')) {
                 membersList.push(member.id);
             }
         });
         const uniquePeers = [...new Set(membersList)];
         setPeers(uniquePeers);
-        addLog(`[System] Sync: ${uniquePeers.length} active nodes`);
+        addLog(`[System] Squad Sync: ${uniquePeers.length} 대원 탐지됨`);
     }, [addLog]);
+
+    // v111: Force sync squad list every 5 seconds when connected
+    useEffect(() => {
+        if (status !== 'CONNECTED') return;
+        const interval = setInterval(() => {
+            syncPeersWithPusher();
+        }, 5000);
+        return () => clearInterval(interval);
+    }, [status, syncPeersWithPusher]);
 
     const removePeer = useCallback((id) => {
         if (connectionsRef.current[id]) {
@@ -375,7 +385,7 @@ export const WebRTCProvider = ({ children }) => {
         setError(null);
         setIsLeader(leaderStatus);
 
-        addLog(`STEP 0: AUTH_TIMEOUT SET (30s)`);
+        addLog(`STEP 0: AUTH_TIMEOUT SET (60s)`);
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         timeoutRef.current = setTimeout(() => {
             setStatus(prev => {
@@ -387,7 +397,16 @@ export const WebRTCProvider = ({ children }) => {
                 }
                 return prev;
             });
-        }, 30000);
+        }, 60000);
+
+        // v111: Immediate Lobby Update - ensure this room is visible right away
+        setAvailableRooms(prev => {
+            const exists = prev.find(r => r.id === targetRoomId);
+            if (!exists) {
+                return [{ id: targetRoomId, userCount: 1 }, ...prev];
+            }
+            return prev;
+        });
 
         try {
             // v94: Force stop ALL existing tracks in the browser to resolve conflicts
