@@ -505,12 +505,13 @@ const RadioButton = () => {
                             className="bg-white w-full max-w-sm rounded-[40px] shadow-2xl overflow-hidden relative z-10 p-8"
                         >
                             <div className="flex flex-col items-center space-y-6">
-                                <div className="text-center space-y-1">
+                                <div className="text-center space-y-2">
                                     <h3 className="text-lg font-bold text-tactical-fg uppercase tracking-tight">SECURE ACCESS</h3>
-                                    <p className="text-[10px] text-tactical-muted font-bold tracking-widest uppercase">{keypadRoom?.id.split('@@')[0]} 채널 비밀번호 4자리 입력</p>
+                                    <p className="text-[12px] text-tactical-accent font-bold tracking-tight">보안을 위해 비밀번호 4자리를 입력하세요</p>
+                                    <p className="text-[10px] text-tactical-muted font-medium uppercase tracking-widest">{keypadRoom?.id.split('@@')[0]}</p>
                                 </div>
 
-                                {/* PIN Display */}
+                                {/* PIN Display - Masked with dots */}
                                 <div className="flex space-x-4">
                                     {[0, 1, 2, 3].map((i) => (
                                         <div
@@ -518,11 +519,11 @@ const RadioButton = () => {
                                             className={`w-14 h-20 rounded-2xl border-2 flex items-center justify-center text-3xl font-bold transition-all ${pinError
                                                 ? 'border-tactical-danger bg-tactical-danger/5 text-tactical-danger'
                                                 : inputPin.length > i
-                                                    ? 'border-tactical-accent bg-tactical-accent/5 text-tactical-accent'
+                                                    ? 'border-tactical-accent bg-tactical-accent/10 text-tactical-accent'
                                                     : 'border-tactical-border bg-tactical-surface text-tactical-muted'
                                                 }`}
                                         >
-                                            {inputPin.length > i ? inputPin[i] : ''}
+                                            {inputPin.length > i ? '●' : ''}
                                         </div>
                                     ))}
                                 </div>
@@ -537,7 +538,7 @@ const RadioButton = () => {
                                     </motion.p>
                                 )}
 
-                                {/* Keypad Grid */}
+                                {/* Keypad Grid - Large Numeric Buttons */}
                                 <div className="grid grid-cols-3 gap-4 w-full">
                                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 'C', 0, '⌫'].map((val) => (
                                         <motion.button
@@ -550,18 +551,24 @@ const RadioButton = () => {
                                                 else if (inputPin.length < 4) {
                                                     const nextPin = inputPin + val;
                                                     setInputPin(nextPin);
+
+                                                    // Auto-verification after 4th digit
                                                     if (nextPin.length === 4) {
                                                         const [_, correctPin] = keypadRoom.id.split('@@');
                                                         if (nextPin === correctPin) {
-                                                            updateSettings({ roomId: keypadRoom.id });
-                                                            startSystem(keypadRoom.id);
-                                                            setIsKeypadOpen(false);
-                                                            setIsModalOpen(false);
+                                                            // Success logic
+                                                            setTimeout(() => {
+                                                                updateSettings({ roomId: keypadRoom.id });
+                                                                startSystem(keypadRoom.id);
+                                                                setIsKeypadOpen(false);
+                                                                setIsModalOpen(false);
+                                                            }, 150);
                                                         } else {
+                                                            // Error logic
                                                             setTimeout(() => {
                                                                 setPinError(true);
                                                                 setInputPin('');
-                                                            }, 200);
+                                                            }, 400);
                                                         }
                                                     }
                                                 }

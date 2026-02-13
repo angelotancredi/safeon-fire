@@ -359,25 +359,25 @@ export const WebRTCProvider = ({ children }) => {
         addLog(`JOIN: ${displayRoom.toUpperCase()} Sequence Started`);
         await cleanup();
 
-        // v99: Small delay to allow browser/pusher settlement after cleanup
+        // v99/v100: Small delay to allow browser/pusher settlement after cleanup
         await new Promise(resolve => setTimeout(resolve, 500));
 
         setStatus('STARTING');
         setError(null);
         setIsLeader(leaderStatus); // v97: Set leader status
 
-        // v93: Increased timeout to 16s (2x upgrade)
+        // v93/v100: Increased timeout to 20s (2.5x original) for robust auth
         timeoutRef.current = setTimeout(() => {
             setStatus(prev => {
                 if (prev === 'STARTING') {
-                    addLog('TIMEOUT: JOIN FAILED');
+                    addLog(`TIMEOUT: JOIN FAILED [${displayRoom.toUpperCase()}]`);
                     setError('TIMEOUT: JOIN FAILED');
-                    cleanup(); // Note: inside synchronous setTimeout, we can't easily await, but cleanup itself handles internal awaits
+                    cleanup();
                     return 'OFFLINE';
                 }
                 return prev;
             });
-        }, 16000);
+        }, 20000);
 
         try {
             // v94: Force stop ALL existing tracks in the browser to resolve conflicts
@@ -432,6 +432,7 @@ export const WebRTCProvider = ({ children }) => {
 
             stream.getAudioTracks().forEach(t => t.enabled = false);
 
+            addLog('STEP 4: INITIALIZING PUSHER');
             const pusher = new Pusher(PUSHER_CONFIG.key, {
                 cluster: PUSHER_CONFIG.cluster,
                 authEndpoint: "/api/pusher-auth",
@@ -479,12 +480,13 @@ export const WebRTCProvider = ({ children }) => {
                 }
             });
 
+            addLog('STEP 4: SUBSCRIBING');
             const channel = pusher.subscribe(`presence-${targetRoomId}`);
             channelRef.current = channel;
 
             channel.bind('pusher:subscription_succeeded', (members) => {
                 if (timeoutRef.current) clearTimeout(timeoutRef.current);
-                addLog('STEP 5: Presence SUB OK');
+                addLog('STEP 5: SUB OK');
                 setStatus('CONNECTED');
                 setPeerId(myIdRef.current);
                 syncPeersWithPusher();
