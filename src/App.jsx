@@ -206,12 +206,9 @@ const NavButton = ({ icon, label, active, onClick }) => (
 const SquadView = ({ rtc }) => {
   const { peers, isConnected, peerId, talkingPeers, availableRooms, settings } = rtc;
 
-  const formatId = (id) => {
-    if (!id) return "...";
-    if (id.startsWith('채널-')) return id;
-    const cleanId = id.split('-').pop();
-    return `삼정-${cleanId.slice(0, 4).toUpperCase()}`;
-  };
+  const roomLabel = (settings?.roomId || '').split('@@')[0] || 'radio';
+  const shortId = (id) => (id ? String(id).slice(-4) : '----');
+  const callsign = (id) => `${roomLabel}-${shortId(id)}`;
 
   const effectiveRooms = availableRooms.map(r => {
     if (r.id === settings?.roomId && isConnected) {
@@ -269,7 +266,7 @@ const SquadView = ({ rtc }) => {
                         <div className="p-3 bg-tactical-surface rounded-2xl flex items-center justify-between">
                           <div className="flex items-center space-x-3">
                             <div className="w-2 h-2 rounded-full bg-tactical-accent animate-pulse" />
-                            <span className="text-[12px] font-black text-tactical-fg">{formatId(peerId)} <span className="opacity-40 text-[10px] ml-1">(YOU)</span></span>
+                            <span className="text-[12px] font-black text-tactical-fg">{callsign(peerId)} <span className="opacity-40 text-[10px] ml-1">(YOU)</span></span>
                           </div>
                           <span className="text-[9px] font-black text-tactical-accent uppercase">MASTER</span>
                         </div>
@@ -278,7 +275,7 @@ const SquadView = ({ rtc }) => {
                           <div key={peer} className="p-3 bg-white border border-tactical-border rounded-2xl flex items-center justify-between">
                             <div className="flex items-center space-x-3">
                               <div className={`w-2 h-2 rounded-full ${talkingPeers.has(peer) ? 'bg-tactical-ok animate-pulse' : 'bg-tactical-muted/40'}`} />
-                              <span className="text-[12px] font-bold text-tactical-fg">{formatId(peer)}</span>
+                              <span className="text-[12px] font-bold text-tactical-fg">{callsign(peer)}</span>
                             </div>
                             {talkingPeers.has(peer) && (
                               <span className="text-[8px] font-black text-tactical-ok uppercase">Talking...</span>

@@ -13,6 +13,12 @@ const RadioButton = ({ rtc }) => {
         availableRooms, isLoadingRooms, fetchRooms, updateSettings
     } = rtc;
 
+    // Helper functions for display
+    // Helper functions for display
+    const roomLabel = (settings?.roomId || '').split('@@')[0] || 'radio';
+    const shortId = (id) => (id ? String(id).slice(-4) : '----');
+    const callsign = (id) => `${roomLabel}-${shortId(id)}`;
+
     // UI용: "누르고 있는 중" 상태(입력 레이스 방지용)
     const [pttPressed, setPttPressed] = useState(false);
 
@@ -345,7 +351,7 @@ const RadioButton = ({ rtc }) => {
                                         className="flex items-center space-x-2 bg-tactical-ok/10 px-4 py-2 rounded-full border border-emerald-200"
                                     >
                                         <span className="text-[12px] font-bold text-tactical-ok tracking-wider uppercase">
-                                            [{activeTalkerId === 'me' ? peerId : activeTalkerId}] 송신 중...
+                                            [{activeTalkerId === 'me' ? callsign(peerId) : callsign(activeTalkerId)}] 송신 중...
                                         </span>
                                     </motion.div>
                                 </motion.div>
