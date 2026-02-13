@@ -353,16 +353,15 @@ export const WebRTCProvider = ({ children }) => {
         if (status === 'STARTING') return;
 
         // v94: Don't restart if already connected to THIS room
-        if (status === 'CONNECTED' && lastJoinedRoomRef.current === targetRoomId) {
-            return;
-        }
-
-        // v98: Update ref IMMEDIATELY to prevent recursive calls from re-renders
         lastJoinedRoomRef.current = targetRoomId;
 
         const displayRoom = targetRoomId.split('@@')[0];
         addLog(`JOIN: ${displayRoom.toUpperCase()} Sequence Started`);
         await cleanup();
+
+        // v99: Small delay to allow browser/pusher settlement after cleanup
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         setStatus('STARTING');
         setError(null);
         setIsLeader(leaderStatus); // v97: Set leader status
@@ -496,6 +495,14 @@ export const WebRTCProvider = ({ children }) => {
                         initiateConnection(member.id, isOfferer);
                     }
                 });
+            });
+
+            // v99: Catch subscription errors (e.g., auth failure or rate limit)
+            channel.bind('pusher:subscription_error', (status) => {
+                addLog(`[System] ERR: SUB_FAILED (${status})`);
+                if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                setStatus('OFFLINE');
+                setError(`SUB_FAILED: ${status}`);
             });
 
             channel.bind('pusher:member_added', (member) => {

@@ -253,7 +253,7 @@ const RadioButton = () => {
                                 <div className="absolute inset-0 bg-white/95 flex items-center justify-center z-10">
                                     <div className="flex flex-col items-center">
                                         <div className="w-8 h-8 border-4 border-tactical-accent border-t-transparent rounded-full animate-spin mb-3" />
-                                        <span className="text-[10px] font-black text-tactical-fg tracking-widest uppercase">
+                                        <span className="text-[10px] font-bold text-tactical-fg tracking-widest uppercase">
                                             초기화 중...
                                         </span>
                                     </div>
@@ -278,7 +278,7 @@ const RadioButton = () => {
                                         transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
                                         className="flex items-center space-x-2 bg-tactical-ok/10 px-4 py-2 rounded-full border border-emerald-200"
                                     >
-                                        <span className="text-[12px] font-black text-tactical-ok tracking-wider uppercase">
+                                        <span className="text-[12px] font-bold text-tactical-ok tracking-wider uppercase">
                                             [{activeTalkerId === 'me' ? peerId : activeTalkerId}] 송신 중...
                                         </span>
                                     </motion.div>
@@ -288,7 +288,7 @@ const RadioButton = () => {
                                     key="standby"
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 0.3 }}
-                                    className="text-[11px] font-black text-tactical-muted tracking-[0.4em] uppercase"
+                                    className="text-[11px] font-bold text-tactical-muted tracking-[0.4em] uppercase"
                                 >
                                     대기 중
                                 </motion.span>
@@ -511,18 +511,18 @@ const RadioButton = () => {
                                 </div>
 
                                 {/* PIN Display */}
-                                <div className="flex space-x-3">
+                                <div className="flex space-x-4">
                                     {[0, 1, 2, 3].map((i) => (
                                         <div
                                             key={i}
-                                            className={`w-12 h-16 rounded-2xl border-2 flex items-center justify-center text-2xl font-black transition-all ${pinError
+                                            className={`w-14 h-20 rounded-2xl border-2 flex items-center justify-center text-3xl font-bold transition-all ${pinError
                                                 ? 'border-tactical-danger bg-tactical-danger/5 text-tactical-danger'
                                                 : inputPin.length > i
                                                     ? 'border-tactical-accent bg-tactical-accent/5 text-tactical-accent'
                                                     : 'border-tactical-border bg-tactical-surface text-tactical-muted'
                                                 }`}
                                         >
-                                            {inputPin.length > i ? '•' : ''}
+                                            {inputPin.length > i ? inputPin[i] : ''}
                                         </div>
                                     ))}
                                 </div>
@@ -531,22 +531,22 @@ const RadioButton = () => {
                                     <motion.p
                                         initial={{ opacity: 0, scale: 0.9 }}
                                         animate={{ opacity: 1, scale: 1 }}
-                                        className="text-[10px] text-tactical-danger font-black uppercase tracking-widest"
+                                        className="text-[11px] text-tactical-danger font-bold uppercase tracking-widest"
                                     >
                                         비밀번호가 일치하지 않습니다
                                     </motion.p>
                                 )}
 
                                 {/* Keypad Grid */}
-                                <div className="grid grid-cols-3 gap-3 w-full max-w-[280px]">
-                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 'CLR', 0, 'DEL'].map((val) => (
+                                <div className="grid grid-cols-3 gap-4 w-full">
+                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 'C', 0, '⌫'].map((val) => (
                                         <motion.button
                                             key={val}
                                             whileTap={{ scale: 0.92 }}
                                             onClick={() => {
                                                 setPinError(false);
-                                                if (val === 'CLR') setInputPin('');
-                                                else if (val === 'DEL') setInputPin(prev => prev.slice(0, -1));
+                                                if (val === 'C') setInputPin('');
+                                                else if (val === '⌫') setInputPin(prev => prev.slice(0, -1));
                                                 else if (inputPin.length < 4) {
                                                     const nextPin = inputPin + val;
                                                     setInputPin(nextPin);
@@ -566,7 +566,12 @@ const RadioButton = () => {
                                                     }
                                                 }
                                             }}
-                                            className="h-16 rounded-2xl bg-tactical-surface border border-tactical-border flex items-center justify-center text-xl font-black text-tactical-fg active:bg-tactical-accent active:text-white active:border-tactical-accent transition-colors"
+                                            className={[
+                                                "h-20 rounded-3xl flex items-center justify-center text-3xl font-bold transition-all shadow-sm",
+                                                (val === 'C' || val === '⌫')
+                                                    ? "bg-tactical-surface text-tactical-muted border border-tactical-border active:bg-tactical-danger active:text-white"
+                                                    : "bg-tactical-surface text-tactical-fg border border-tactical-border active:bg-tactical-accent active:text-white active:border-tactical-accent"
+                                            ].join(" ")}
                                         >
                                             {val}
                                         </motion.button>
@@ -575,7 +580,7 @@ const RadioButton = () => {
 
                                 <button
                                     onClick={() => setIsKeypadOpen(false)}
-                                    className="text-[10px] font-black text-tactical-muted uppercase tracking-[0.3em] hover:text-tactical-fg transition-colors"
+                                    className="w-full py-4 text-sm font-bold text-tactical-muted uppercase tracking-widest hover:text-tactical-fg transition-colors mt-2"
                                 >
                                     취소
                                 </button>
