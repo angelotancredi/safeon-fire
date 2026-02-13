@@ -399,6 +399,7 @@ export const WebRTCProvider = ({ children }) => {
                     addLog(`[경고] 접속 시간 초과: ${displayRoom}`);
                     setError('접속 시간이 초과되었습니다. 네트워크를 확인하세요.');
                     cleanup();
+                    lastJoinedRoomRef.current = null;
                     return 'OFFLINE';
                 }
                 return prev;
