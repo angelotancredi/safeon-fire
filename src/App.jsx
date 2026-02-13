@@ -268,7 +268,23 @@ const SquadView = ({ rtc }) => {
                             <div className="w-2 h-2 rounded-full bg-tactical-accent animate-pulse" />
                             <span className="text-[12px] font-black text-tactical-fg">{callsign(peerId)} <span className="opacity-40 text-[10px] ml-1">(YOU)</span></span>
                           </div>
-                          <span className="text-[9px] font-black text-tactical-accent uppercase">MASTER</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-black text-tactical-accent uppercase">MASTER</span>
+
+                            {rtc.isLeader && isActive && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (window.confirm("정말 이 채널을 삭제하시겠습니까? 모든 대원이 즉시 연결 해제됩니다.")) {
+                                    rtc.deleteCurrentRoom?.();
+                                  }
+                                }}
+                                className="text-[9px] font-black text-white bg-tactical-danger px-2 py-1 rounded-full uppercase transition-transform active:scale-95"
+                              >
+                                Delete
+                              </button>
+                            )}
+                          </div>
                         </div>
                         {/* Peers */}
                         {peers.map(peer => (

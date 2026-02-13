@@ -58,6 +58,19 @@ export const WebRTCProvider = ({ children }) => {
     const [availableRooms, setAvailableRooms] = useState([]); // v92: Channel Lobby
     const [isLoadingRooms, setIsLoadingRooms] = useState(false); // v92
 
+    // v122: Stable Room Key & Channel Deletion
+    const roomKeyRef = useRef(null);
+
+    const makeRoomKey = (roomId) => {
+        const s = String(roomId || '');
+        let h = 2166136261;
+        for (let i = 0; i < s.length; i++) {
+            h ^= s.charCodeAt(i);
+            h = Math.imul(h, 16777619);
+        }
+        return `r_${(h >>> 0).toString(16)}`;
+    };
+
     const pusherRef = useRef(null);
     const channelRef = useRef(null);
     const localStreamRef = useRef(null);
@@ -185,13 +198,30 @@ export const WebRTCProvider = ({ children }) => {
     }, []);
 
     // v92: Fetch active rooms from backend
+    // v92: Fetch active rooms from backend
     const fetchRooms = useCallback(async () => {
         setIsLoadingRooms(true);
         try {
             const res = await fetch('/api/pusher/rooms');
             if (res.ok) {
                 const data = await res.json();
-                setAvailableRooms(data.rooms || []);
+
+                // v122: Merge server data with local temporary rooms
+                setAvailableRooms(prev => {
+                    const incoming = data.rooms || [];
+                    const map = new Map();
+
+                    // Server first
+                    for (const r of incoming) map.set(r.id, r);
+
+                    // Keep local instant updates if not yet on server
+                    for (const r of prev) {
+                        if (!map.has(r.id)) map.set(r.id, r);
+                    }
+
+                    // Sort by user count descending
+                    return Array.from(map.values()).sort((a, b) => (b.userCount || 0) - (a.userCount || 0));
+                });
             }
         } catch (e) {
             console.error("[Radio-v92] Fetch Rooms Fail:", e);
@@ -376,8 +406,12 @@ export const WebRTCProvider = ({ children }) => {
 
         lastJoinedRoomRef.current = targetRoomId;
 
+        // v122: Generate stable room key
+        const roomKey = makeRoomKey(targetRoomId);
+        roomKeyRef.current = roomKey;
+
         // v109/v110: Update UI state immediately
-        updateSettings({ roomId: targetRoomId });
+        updateSettings({ roomId: targetRoomId, roomKey });
 
         const displayRoom = manualRoomId; // Show clean name in logs
         addLog(`JOIN: ${displayRoom.toUpperCase()} Sequence Started`);
@@ -519,8 +553,8 @@ export const WebRTCProvider = ({ children }) => {
             });
 
             addLog('STEP 5: SYNCING...'); // v108: Corrected numbering
-            const safeRoomId = String(targetRoomId).replace(/[^a-zA-Z0-9_-]/g, '_');
-            const channel = pusher.subscribe(`presence-${safeRoomId}`);
+            // v122: Use stable room key for subscription
+            const channel = pusher.subscribe(`presence-${roomKeyRef.current}`);
             channelRef.current = channel;
 
             channel.bind('pusher:subscription_succeeded', (members) => {
@@ -603,6 +637,15 @@ export const WebRTCProvider = ({ children }) => {
                 } catch (sigErr) {
                     // console.warn("[Signaling-Conflict]", sigErr);
                 }
+            });
+
+            // v122: Handle Room Deletion
+            channel.bind('client-room-deleted', (data) => {
+                addLog(`[System] ROOM DELETED by ${data?.by || 'master'}`);
+                cleanup();
+                setStatus('OFFLINE');
+                setError('채널이 삭제되어 연결이 종료되었습니다.');
+                lastJoinedRoomRef.current = null;
             });
 
         } catch (err) {
@@ -738,6 +781,26 @@ export const WebRTCProvider = ({ children }) => {
         });
     }, []);
 
+    // v122: Master Delete Room Function
+    const deleteCurrentRoom = useCallback(() => {
+        if (!channelRef.current) return;
+
+        // Notify all peers
+        channelRef.current.trigger('client-room-deleted', {
+            by: myIdRef.current,
+            at: Date.now(),
+        });
+
+        // Self cleanup
+        cleanup();
+        setStatus('OFFLINE');
+        setError(null);
+        lastJoinedRoomRef.current = null;
+
+        // Optional: Remove from local lobby immediately
+        setAvailableRooms(prev => prev.filter(r => r.id !== settings?.roomId));
+    }, [cleanup, settings?.roomId]);
+
     const value = {
         peers,
         isConnected: status === 'CONNECTED',
@@ -759,7 +822,9 @@ export const WebRTCProvider = ({ children }) => {
         updateSettings,
         availableRooms,
         isLoadingRooms,
-        fetchRooms
+        fetchRooms,
+        isLeader, // v97: Exposed for UI
+        deleteCurrentRoom // v122: Exposed for Master UI
     };
 
     return <WebRTCContext.Provider value={value}>{children}</WebRTCContext.Provider>;
