@@ -1,0 +1,16 @@
+{
+    "rewrites": [
+        {
+            "source": "/api/pusher-auth",
+            "destination": "/api/pusher-auth.js"
+        },
+        {
+            "source": "/api/pusher/rooms",
+            "destination": "/api/pusher/rooms.js"
+        },
+        {
+            "source": "/(.*)",
+            "destination": "/index.html"
+        }
+    ]
+}
