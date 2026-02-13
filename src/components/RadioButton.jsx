@@ -125,6 +125,8 @@ const RadioButton = ({ rtc }) => {
 
     const handlePointerDown = useCallback((e) => {
         if (!isConnected) return;
+        if (peerStatus === 'STARTING') return;
+        if (e.button != null && e.button !== 0) return;
         if (e.button != null && e.button !== 0) return;
 
         // 모바일에서 스크롤/줌 간섭 최소화
@@ -498,12 +500,15 @@ const RadioButton = ({ rtc }) => {
                                             // Delay modal close slightly to show feedback
                                             setTimeout(() => {
                                                 const formattedName = newRoomName.trim().toLowerCase().replace(/\s+/g, '-');
-                                                startSystem(formattedName, newRoomPin, true);
+                                                const roomId = `${formattedName}@@${newRoomPin}`;
+                                                updateSettings?.({ roomId });
+                                                startSystem(roomId);
                                                 setIsModalOpen(false);
                                                 setIsCreating(false);
                                                 setNewRoomName('');
                                                 setNewRoomPin('');
                                             }, 400);
+
                                         }
                                     }} className="space-y-5">
                                         <div className="space-y-4">
@@ -561,11 +566,12 @@ const RadioButton = ({ rtc }) => {
                             </div>
                         </motion.div>
                     </div>
-                )}
-            </AnimatePresence>
+                )
+                }
+            </AnimatePresence >
 
             {/* v95: Keypad Pin Modal */}
-            <AnimatePresence>
+            < AnimatePresence >
                 {isKeypadOpen && (
                     <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center p-4">
                         <motion.div
@@ -687,8 +693,8 @@ const RadioButton = ({ rtc }) => {
                         </motion.div>
                     </div>
                 )}
-            </AnimatePresence>
-        </div>
+            </AnimatePresence >
+        </div >
     );
 };
 
