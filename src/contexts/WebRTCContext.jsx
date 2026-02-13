@@ -366,8 +366,14 @@ export const WebRTCProvider = ({ children }) => {
         const finalRoomId = password ? `${manualRoomId}@@${password}` : manualRoomId;
         const targetRoomId = finalRoomId;
 
-        // v110: Simplified loop prevention
-        if (status === 'STARTING' && lastJoinedRoomRef.current === targetRoomId) return;
+        // Loop prevention: block only accidental double-click, but DO NOT block retries.
+        // retryCountRef.current > 0 means we're in a retry cycle.
+        if (
+            status === 'STARTING' &&
+            lastJoinedRoomRef.current === targetRoomId &&
+            (retryCountRef.current === 0)
+        ) return;
+
         lastJoinedRoomRef.current = targetRoomId;
 
         // v109/v110: Update UI state immediately
@@ -482,7 +488,9 @@ export const WebRTCProvider = ({ children }) => {
                     addLog(`[System] Reconnecting... (Attempt ${retryCountRef.current}/3)`);
                     if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
                     retryTimeoutRef.current = setTimeout(() => {
-                        startSystem(targetRoomId); // v96: Pass the targetRoomId to retry
+                        // targetRoomId may already include @@PIN. Reconstruct args for consistent behavior.
+                        const [roomName, roomPin] = String(targetRoomId).split('@@');
+                        startSystem(roomName, roomPin || null, leaderStatus);
                     }, 3000); // 3s interval
                 } else {
                     addLog(`[System] CONNECTION FAILED after 3 attempts.`);
@@ -515,6 +523,7 @@ export const WebRTCProvider = ({ children }) => {
 
             channel.bind('pusher:subscription_succeeded', (members) => {
                 if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                retryCountRef.current = 0;
                 addLog('STEP 5: SUB OK');
                 setStatus('CONNECTED');
                 setPeerId(myIdRef.current);
