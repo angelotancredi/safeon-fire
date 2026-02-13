@@ -660,7 +660,8 @@ export const WebRTCProvider = ({ children }) => {
     useEffect(() => {
         // v94: Only trigger if the room actually changed from what we last tried
         if (settings.roomId !== lastJoinedRoomRef.current && status !== 'STARTING') {
-            addLog(`[System] Room ID Changed -> ${settings.roomId}. Reconnecting...`);
+            const displayRoom = settings.roomId.split('@@')[0];
+            addLog(`[System] Room ID Changed -> ${displayRoom.toUpperCase()}. Reconnecting...`);
             startSystem();
         }
     }, [settings.roomId, status, addLog, startSystem]);

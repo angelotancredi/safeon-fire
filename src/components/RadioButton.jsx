@@ -17,6 +17,11 @@ const RadioButton = () => {
     const [showDebug, setShowDebug] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newRoomName, setNewRoomName] = useState('');
+    const [newRoomPin, setNewRoomPin] = useState('');
+    const [isKeypadOpen, setIsKeypadOpen] = useState(false);
+    const [keypadRoom, setKeypadRoom] = useState(null);
+    const [inputPin, setInputPin] = useState('');
+    const [pinError, setPinError] = useState(false);
     const animationFrameRef = useRef(null);
     const squelchStartAudioRef = useRef(null);
     const squelchStopAudioRef = useRef(null);
@@ -355,39 +360,49 @@ const RadioButton = () => {
                                         <span className="text-[10px] font-black text-tactical-muted tracking-widest uppercase">Scanning frequencies...</span>
                                     </div>
                                 ) : availableRooms.length > 0 ? (
-                                    availableRooms.map((room) => (
-                                        <motion.button
-                                            key={room.id}
-                                            whileHover={{ x: 4 }}
-                                            whileTap={{ scale: 0.98 }}
-                                            onClick={() => {
-                                                updateSettings({ roomId: room.id });
-                                                // startSystem() will be called by useEffect in WebRTCContext
-                                                setIsModalOpen(false);
-                                            }}
-                                            className="w-full p-4 rounded-2xl border border-tactical-border hover:border-tactical-accent hover:bg-tactical-accent/5 transition-all text-left flex items-center justify-between group"
-                                        >
-                                            <div className="flex items-center space-x-4">
-                                                <div className="w-12 h-12 bg-tactical-surface group-hover:bg-white rounded-xl flex items-center justify-center transition-colors">
-                                                    <Hash className="w-6 h-6 text-tactical-accent" />
-                                                </div>
-                                                <div>
-                                                    <div className="text-base font-black text-tactical-fg group-hover:text-tactical-accent transition-colors uppercase tracking-tight">
-                                                        {room.id}
+                                    availableRooms.map((room) => {
+                                        const [displayName, password] = room.id.split('@@');
+                                        return (
+                                            <motion.button
+                                                key={room.id}
+                                                whileHover={{ x: 4 }}
+                                                whileTap={{ scale: 0.98 }}
+                                                onClick={() => {
+                                                    if (password) {
+                                                        setKeypadRoom(room);
+                                                        setIsKeypadOpen(true);
+                                                        setInputPin('');
+                                                        setPinError(false);
+                                                    } else {
+                                                        updateSettings({ roomId: room.id });
+                                                        setIsModalOpen(false);
+                                                    }
+                                                }}
+                                                className="w-full p-4 rounded-2xl border border-tactical-border hover:border-tactical-accent hover:bg-tactical-accent/5 transition-all text-left flex items-center justify-between group"
+                                            >
+                                                <div className="flex items-center space-x-4">
+                                                    <div className="w-12 h-12 bg-tactical-surface group-hover:bg-white rounded-xl flex items-center justify-center transition-colors">
+                                                        <Hash className="w-6 h-6 text-tactical-accent" />
                                                     </div>
-                                                    <div className="text-[10px] font-bold text-tactical-muted uppercase tracking-widest">
-                                                        Frequency: {room.id.length * 4}.{room.id.length} MHz
+                                                    <div>
+                                                        <div className="text-base font-black text-tactical-fg group-hover:text-tactical-accent transition-colors uppercase tracking-tight flex items-center">
+                                                            {displayName}
+                                                            {password && <span className="text-[8px] bg-tactical-accent/10 text-tactical-accent px-1.5 py-0.5 rounded-sm ml-2 font-black uppercase tracking-wider border border-tactical-accent/20">Secure</span>}
+                                                        </div>
+                                                        <div className="text-[10px] font-bold text-tactical-muted uppercase tracking-widest">
+                                                            Frequency: {displayName.length * 4}.{displayName.length} MHz
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                            <div className="flex items-center space-x-2">
-                                                <div className="flex items-center space-x-1 bg-tactical-surface px-2.5 py-1 rounded-full border border-tactical-border">
-                                                    <Users className="w-3 h-3 text-tactical-muted" />
-                                                    <span className="text-[10px] font-black text-tactical-fg">{room.userCount}</span>
+                                                <div className="flex items-center space-x-2">
+                                                    <div className="flex items-center space-x-1 bg-tactical-surface px-2.5 py-1 rounded-full border border-tactical-border transition-colors group-hover:bg-white group-hover:border-tactical-accent/20">
+                                                        <Users className="w-3 h-3 text-tactical-muted" />
+                                                        <span className="text-[10px] font-black text-tactical-fg">{room.userCount}</span>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </motion.button>
-                                    ))
+                                            </motion.button>
+                                        );
+                                    })
                                 ) : (
                                     <div className="flex flex-col items-center justify-center py-12 text-center">
                                         <div className="w-16 h-16 bg-tactical-surface rounded-full flex items-center justify-center mb-4">
@@ -418,8 +433,8 @@ const RadioButton = () => {
                                         <span className="text-[10px] font-black text-tactical-accent tracking-[0.2em] uppercase">Create New Channel</span>
                                         <Plus className="w-3 h-3 text-tactical-accent" />
                                     </div>
-                                    <div className="flex space-x-2">
-                                        <div className="relative flex-1 group">
+                                    <div className="flex flex-col space-y-2">
+                                        <div className="relative group">
                                             <Hash className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-tactical-muted group-focus-within:text-tactical-accent transition-colors" />
                                             <input
                                                 type="text"
@@ -429,15 +444,127 @@ const RadioButton = () => {
                                                 className="w-full h-14 bg-tactical-surface border border-tactical-border rounded-2xl pl-12 pr-4 text-sm font-black tracking-tight focus:outline-none focus:ring-4 focus:ring-tactical-accent/10 focus:border-tactical-accent focus:bg-white transition-all uppercase"
                                             />
                                         </div>
-                                        <button
-                                            type="submit"
-                                            disabled={!newRoomName.trim()}
-                                            className="h-14 px-8 bg-tactical-accent text-white rounded-2xl font-black text-xs tracking-widest uppercase shadow-xl shadow-tactical-accent/30 active:scale-95 disabled:opacity-50 disabled:grayscale transition-all whitespace-nowrap"
-                                        >
-                                            CREATE
-                                        </button>
+                                        <div className="flex space-x-2">
+                                            <div className="relative flex-1 group">
+                                                <Terminal className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-tactical-muted group-focus-within:text-tactical-accent transition-colors" />
+                                                <input
+                                                    type="password"
+                                                    pattern="\d*"
+                                                    maxLength={4}
+                                                    value={newRoomPin}
+                                                    onChange={(e) => setNewRoomPin(e.target.value.replace(/\D/g, ''))}
+                                                    placeholder="4-DIGIT PIN..."
+                                                    className="w-full h-14 bg-tactical-surface border border-tactical-border rounded-2xl pl-12 pr-4 text-sm font-bold tracking-[0.5em] focus:outline-none focus:ring-4 focus:ring-tactical-accent/10 focus:border-tactical-accent focus:bg-white transition-all text-center"
+                                                />
+                                            </div>
+                                            <button
+                                                type="submit"
+                                                disabled={!newRoomName.trim() || newRoomPin.length !== 4}
+                                                className="h-14 px-8 bg-tactical-accent text-white rounded-2xl font-black text-xs tracking-widest uppercase shadow-xl shadow-tactical-accent/30 active:scale-95 disabled:opacity-50 disabled:grayscale transition-all whitespace-nowrap"
+                                            >
+                                                CREATE
+                                            </button>
+                                        </div>
+                                        <p className="text-[9px] text-tactical-muted font-bold tracking-widest uppercase px-1 opacity-60">Channels must have a 4-digit security PIN</p>
                                     </div>
                                 </form>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* v95: Keypad Pin Modal */}
+            <AnimatePresence>
+                {isKeypadOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsKeypadOpen(false)}
+                            className="absolute inset-0 bg-tactical-fg/60 backdrop-blur-sm"
+                        />
+                        <motion.div
+                            initial={{ y: "100%" }}
+                            animate={{ y: 0 }}
+                            exit={{ y: "100%" }}
+                            className="bg-white w-full max-w-sm rounded-[40px] shadow-2xl overflow-hidden relative z-10 p-8"
+                        >
+                            <div className="flex flex-col items-center space-y-6">
+                                <div className="text-center space-y-1">
+                                    <h3 className="text-lg font-black text-tactical-fg uppercase tracking-tight">SECURE ACCESS</h3>
+                                    <p className="text-[10px] text-tactical-muted font-bold tracking-widest uppercase">Enter 4-digit PIN for {keypadRoom?.id.split('@@')[0]}</p>
+                                </div>
+
+                                {/* PIN Display */}
+                                <div className="flex space-x-3">
+                                    {[0, 1, 2, 3].map((i) => (
+                                        <div
+                                            key={i}
+                                            className={`w-12 h-16 rounded-2xl border-2 flex items-center justify-center text-2xl font-black transition-all ${pinError
+                                                ? 'border-tactical-danger bg-tactical-danger/5 text-tactical-danger'
+                                                : inputPin.length > i
+                                                    ? 'border-tactical-accent bg-tactical-accent/5 text-tactical-accent'
+                                                    : 'border-tactical-border bg-tactical-surface text-tactical-muted'
+                                                }`}
+                                        >
+                                            {inputPin.length > i ? '•' : ''}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {pinError && (
+                                    <motion.p
+                                        initial={{ opacity: 0, scale: 0.9 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        className="text-[10px] text-tactical-danger font-black uppercase tracking-widest"
+                                    >
+                                        비밀번호가 일치하지 않습니다
+                                    </motion.p>
+                                )}
+
+                                {/* Keypad Grid */}
+                                <div className="grid grid-cols-3 gap-3 w-full max-w-[280px]">
+                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 'CLR', 0, 'DEL'].map((val) => (
+                                        <motion.button
+                                            key={val}
+                                            whileTap={{ scale: 0.92 }}
+                                            onClick={() => {
+                                                setPinError(false);
+                                                if (val === 'CLR') setInputPin('');
+                                                else if (val === 'DEL') setInputPin(prev => prev.slice(0, -1));
+                                                else if (inputPin.length < 4) {
+                                                    const nextPin = inputPin + val;
+                                                    setInputPin(nextPin);
+                                                    if (nextPin.length === 4) {
+                                                        const [_, correctPin] = keypadRoom.id.split('@@');
+                                                        if (nextPin === correctPin) {
+                                                            updateSettings({ roomId: keypadRoom.id });
+                                                            setIsKeypadOpen(false);
+                                                            setIsModalOpen(false);
+                                                        } else {
+                                                            setTimeout(() => {
+                                                                setPinError(true);
+                                                                setInputPin('');
+                                                            }, 200);
+                                                        }
+                                                    }
+                                                }
+                                            }}
+                                            className="h-16 rounded-2xl bg-tactical-surface border border-tactical-border flex items-center justify-center text-xl font-black text-tactical-fg active:bg-tactical-accent active:text-white active:border-tactical-accent transition-colors"
+                                        >
+                                            {val}
+                                        </motion.button>
+                                    ))}
+                                </div>
+
+                                <button
+                                    onClick={() => setIsKeypadOpen(false)}
+                                    className="text-[10px] font-black text-tactical-muted uppercase tracking-[0.3em] hover:text-tactical-fg transition-colors"
+                                >
+                                    Cancel
+                                </button>
                             </div>
                         </motion.div>
                     </div>
