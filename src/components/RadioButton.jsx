@@ -424,7 +424,7 @@ const RadioButton = () => {
                                             const formattedName = newRoomName.trim().toLowerCase().replace(/\s+/g, '-');
                                             const fullRoomId = `${formattedName}@@${newRoomPin}`;
                                             updateSettings({ roomId: fullRoomId });
-                                            startSystem(fullRoomId);
+                                            startSystem(fullRoomId, true); // v97: Setting as leader
                                             setIsModalOpen(false);
                                             setNewRoomName('');
                                             setNewRoomPin('');

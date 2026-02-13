@@ -44,6 +44,7 @@ export const WebRTCProvider = ({ children }) => {
     const [peers, setPeers] = useState([]);
     const [status, setStatus] = useState('OFFLINE');
     const [peerId, setPeerId] = useState(null);
+    const [isLeader, setIsLeader] = useState(false); // v97: Leader status
     const [isTransmitting, setIsTransmitting] = useState(false);
     const [audioLevel] = useState(0);
     const [error, setError] = useState(null);
@@ -345,7 +346,7 @@ export const WebRTCProvider = ({ children }) => {
         }
     }, [addLog, createPC]);
 
-    const startSystem = useCallback(async (manualRoomId = null) => {
+    const startSystem = useCallback(async (manualRoomId = null, leaderStatus = false) => {
         // v96: Use passed ID or falling back to current settings
         const targetRoomId = manualRoomId || settings.roomId;
 
@@ -361,6 +362,7 @@ export const WebRTCProvider = ({ children }) => {
         await cleanup();
         setStatus('STARTING');
         setError(null);
+        setIsLeader(leaderStatus); // v97: Set leader status
         lastJoinedRoomRef.current = targetRoomId;
 
         // v93: Increased timeout to 16s (2x upgrade)
@@ -660,18 +662,7 @@ export const WebRTCProvider = ({ children }) => {
         }
     }, [settings.micSens]);
 
-    // v91: Auto-reconnect when roomId changes
-    // v96: Removed auto-trigger to allow manual JOIN control as requested.
-    /*
-    useEffect(() => {
-        // v94: Only trigger if the room actually changed from what we last tried
-        if (settings.roomId !== lastJoinedRoomRef.current && status !== 'STARTING') {
-            const displayRoom = settings.roomId.split('@@')[0];
-            addLog(`[System] Room ID Changed -> ${displayRoom.toUpperCase()}. Reconnecting...`);
-            startSystem();
-        }
-    }, [settings.roomId, status, addLog, startSystem]);
-    */
+
 
     // Cleanup on App close
     useEffect(() => {
