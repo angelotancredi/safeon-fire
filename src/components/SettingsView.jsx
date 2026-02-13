@@ -1,3 +1,4 @@
+import React, { useState, useContext } from 'react';
 import { motion } from 'framer-motion';
 import { Settings, Volume2, Mic, Smartphone, MapPin, Save, Info, ChevronRight, LogOut } from 'lucide-react';
 import { WebRTCContext, useWebRTC } from '../contexts/WebRTCContext';
