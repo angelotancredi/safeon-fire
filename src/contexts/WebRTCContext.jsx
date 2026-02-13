@@ -63,7 +63,7 @@ export const WebRTCProvider = ({ children }) => {
     const localStreamRef = useRef(null);
     const connectionsRef = useRef({});
     const remoteAudiosRef = useRef({});
-    const myIdRef = useRef(`node-${Math.random().toString(36).substr(2, 6)}`);
+    const myIdRef = useRef(`채널-${Math.random().toString(36).substr(2, 4).toUpperCase()}`);
     const lastJoinedRoomRef = useRef(null); // v94: Loop prevention
     const audioContextRef = useRef(null);
     const analyserRef = useRef(null);

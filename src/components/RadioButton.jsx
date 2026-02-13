@@ -254,7 +254,7 @@ const RadioButton = () => {
                                     <div className="flex flex-col items-center">
                                         <div className="w-8 h-8 border-4 border-tactical-accent border-t-transparent rounded-full animate-spin mb-3" />
                                         <span className="text-[10px] font-black text-tactical-fg tracking-widest uppercase">
-                                            INITIALIZING...
+                                            초기화 중...
                                         </span>
                                     </div>
                                 </div>
@@ -279,7 +279,7 @@ const RadioButton = () => {
                                         className="flex items-center space-x-2 bg-tactical-ok/10 px-4 py-2 rounded-full border border-emerald-200"
                                     >
                                         <span className="text-[12px] font-black text-tactical-ok tracking-wider uppercase">
-                                            [{activeTalkerId === 'me' ? `삼정-${peerId?.split('-').pop().slice(0, 4).toUpperCase()}` : `삼정-${activeTalkerId?.split('-').pop().slice(0, 4).toUpperCase()}`}] 송신 중...
+                                            [{activeTalkerId === 'me' ? peerId : activeTalkerId}] 송신 중...
                                         </span>
                                     </motion.div>
                                 </motion.div>
@@ -290,7 +290,7 @@ const RadioButton = () => {
                                     animate={{ opacity: 0.3 }}
                                     className="text-[11px] font-black text-tactical-muted tracking-[0.4em] uppercase"
                                 >
-                                    STANDBY
+                                    대기 중
                                 </motion.span>
                             ) : (
                                 <motion.div
@@ -332,7 +332,7 @@ const RadioButton = () => {
                             <div className="px-6 py-5 border-b border-tactical-border flex justify-between items-center bg-white sticky top-0 z-10">
                                 <div>
                                     <h3 className="text-xl font-black text-tactical-fg tracking-tight">RADIO CHANNELS</h3>
-                                    <p className="text-[10px] text-tactical-muted font-bold tracking-widest uppercase mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis">Select frequency to join</p>
+                                    <p className="text-[10px] text-tactical-muted font-bold tracking-widest uppercase mt-0.5 whitespace-nowrap overflow-hidden text-ellipsis">현재 활성화된 채널 리스트</p>
                                 </div>
                                 <div className="flex items-center space-x-2">
                                     <motion.button
@@ -395,11 +395,12 @@ const RadioButton = () => {
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center space-x-2">
+                                                <div className="flex flex-col items-end space-y-2">
                                                     <div className="flex items-center space-x-1 bg-tactical-surface px-2.5 py-1 rounded-full border border-tactical-border transition-colors group-hover:bg-white group-hover:border-tactical-accent/20">
                                                         <Users className="w-3 h-3 text-tactical-muted" />
                                                         <span className="text-[10px] font-black text-tactical-fg">{room.userCount}</span>
                                                     </div>
+                                                    <span className="text-[9px] font-black text-tactical-accent opacity-0 group-hover:opacity-100 transition-opacity uppercase">선택한 채널로 접속</span>
                                                 </div>
                                             </motion.button>
                                         );
@@ -409,8 +410,8 @@ const RadioButton = () => {
                                         <div className="w-16 h-16 bg-tactical-surface rounded-full flex items-center justify-center mb-4">
                                             <RadioTower className="w-8 h-8 text-tactical-muted opacity-30" />
                                         </div>
-                                        <h4 className="text-sm font-black text-tactical-fg mb-1">NO ACTIVE CHANNELS</h4>
-                                        <p className="text-[10px] text-tactical-muted font-bold tracking-widest uppercase px-6">Be the first to create a secure channel</p>
+                                        <h4 className="text-sm font-black text-tactical-fg mb-1 uppercase">현재 개설된 채널이 없습니다.</h4>
+                                        <p className="text-[10px] text-tactical-muted font-bold tracking-widest uppercase px-6">새로운 채널을 개설하여 대화를 시작해 보세요.</p>
                                     </div>
                                 )}
                             </div>
@@ -443,7 +444,7 @@ const RadioButton = () => {
                                                 type="text"
                                                 value={newRoomName}
                                                 onChange={(e) => setNewRoomName(e.target.value)}
-                                                placeholder="CHANNEL NAME..."
+                                                placeholder="채널 이름을 입력하세요"
                                                 className="w-full h-14 bg-tactical-surface border border-tactical-border rounded-2xl pl-12 pr-4 text-sm font-black tracking-tight focus:outline-none focus:ring-4 focus:ring-tactical-accent/10 focus:border-tactical-accent focus:bg-white transition-all uppercase"
                                             />
                                         </div>
@@ -456,19 +457,28 @@ const RadioButton = () => {
                                                     maxLength={4}
                                                     value={newRoomPin}
                                                     onChange={(e) => setNewRoomPin(e.target.value.replace(/\D/g, ''))}
-                                                    placeholder="4-DIGIT PIN..."
+                                                    placeholder="비밀번호 4자리 숫자"
                                                     className="w-full h-14 bg-tactical-surface border border-tactical-border rounded-2xl pl-12 pr-4 text-sm font-bold tracking-[0.5em] focus:outline-none focus:ring-4 focus:ring-tactical-accent/10 focus:border-tactical-accent focus:bg-white transition-all text-center"
                                                 />
                                             </div>
                                             <button
                                                 type="submit"
                                                 disabled={!newRoomName.trim() || newRoomPin.length !== 4}
-                                                className="h-14 px-8 bg-tactical-accent text-white rounded-2xl font-black text-xs tracking-widest uppercase shadow-xl shadow-tactical-accent/30 active:scale-95 disabled:opacity-50 disabled:grayscale transition-all whitespace-nowrap"
+                                                className="h-14 px-6 bg-tactical-accent text-white rounded-2xl font-black text-xs tracking-widest uppercase shadow-xl shadow-tactical-accent/30 active:scale-95 disabled:opacity-50 disabled:grayscale transition-all whitespace-nowrap"
                                             >
-                                                CREATE
+                                                채널 만들기
                                             </button>
                                         </div>
-                                        <p className="text-[9px] text-tactical-muted font-bold tracking-widest uppercase px-1 opacity-60">Channels must have a 4-digit security PIN</p>
+                                        <div className="flex items-center justify-between px-1">
+                                            <p className="text-[9px] text-tactical-muted font-bold tracking-widest uppercase opacity-60">Channels must have a 4-digit security PIN</p>
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsModalOpen(false)}
+                                                className="text-[10px] font-black text-tactical-muted hover:text-tactical-danger transition-colors uppercase tracking-widest"
+                                            >
+                                                취소
+                                            </button>
+                                        </div>
                                     </div>
                                 </form>
                             </div>
@@ -497,7 +507,7 @@ const RadioButton = () => {
                             <div className="flex flex-col items-center space-y-6">
                                 <div className="text-center space-y-1">
                                     <h3 className="text-lg font-black text-tactical-fg uppercase tracking-tight">SECURE ACCESS</h3>
-                                    <p className="text-[10px] text-tactical-muted font-bold tracking-widest uppercase">Enter 4-digit PIN for {keypadRoom?.id.split('@@')[0]}</p>
+                                    <p className="text-[10px] text-tactical-muted font-bold tracking-widest uppercase">{keypadRoom?.id.split('@@')[0]} 채널 비밀번호 4자리 입력</p>
                                 </div>
 
                                 {/* PIN Display */}
@@ -567,7 +577,7 @@ const RadioButton = () => {
                                     onClick={() => setIsKeypadOpen(false)}
                                     className="text-[10px] font-black text-tactical-muted uppercase tracking-[0.3em] hover:text-tactical-fg transition-colors"
                                 >
-                                    Cancel
+                                    취소
                                 </button>
                             </div>
                         </motion.div>
