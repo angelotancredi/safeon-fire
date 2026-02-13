@@ -15,6 +15,14 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState('RADIO'); // 'RADIO', 'SQUAD', 'MAP', 'LOG', 'STG'
   const rtc = useWebRTC();
 
+  // v114: Safety Mute on Tab Switch
+  // Prevents PTT from getting stuck if the user switches tabs while holding the button (especially on iOS).
+  useEffect(() => {
+    if (activeTab !== 'RADIO') {
+      rtc.setMuted?.(true);
+    }
+  }, [activeTab, rtc]);
+
   useEffect(() => {
     const handleError = (msg, url, line, col, error) => {
       const details = `${msg}\nStack: ${error?.stack || 'N/A'}\nAt: ${url}:${line}:${col}`;
@@ -109,16 +117,31 @@ function AppContent() {
       <main className="flex-1 min-h-0 flex flex-col items-stretch justify-start relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(900px_400px_at_50%_0%,rgba(255,87,34,0.08),transparent_60%)]" />
         <div className="relative flex-1 min-h-0 flex flex-col">
-          {activeTab === 'RADIO' && <RadioButton rtc={rtc} />}
-          {activeTab === 'SQUAD' && <SquadView rtc={rtc} />}
-          {activeTab === 'MAP' && <MapView rtc={rtc} />}
-          {activeTab === 'LOG' && (
-            <div className="flex-1 flex flex-col items-center justify-center text-tactical-muted text-[10px] uppercase tracking-[0.4em] opacity-40">
+          {/* v114: Persistent Mounting with Hidden Class */}
+          {/* This ensures map state, scroll positions, and PTT listeners remain active but hidden */}
+
+          <div className={activeTab === 'RADIO' ? 'block h-full' : 'hidden'}>
+            <RadioButton rtc={rtc} />
+          </div>
+
+          <div className={activeTab === 'SQUAD' ? 'block h-full' : 'hidden'}>
+            <SquadView rtc={rtc} />
+          </div>
+
+          <div className={activeTab === 'MAP' ? 'block h-full' : 'hidden'}>
+            <MapView rtc={rtc} />
+          </div>
+
+          <div className={activeTab === 'LOG' ? 'flex h-full flex-col items-center justify-center' : 'hidden'}>
+            <div className="flex flex-col items-center justify-center text-tactical-muted text-[10px] uppercase tracking-[0.4em] opacity-40">
               <Wifi className="w-12 h-12 mb-4" />
               Log Engine Initializing...
             </div>
-          )}
-          {activeTab === 'STG' && <SettingsView rtc={rtc} />}
+          </div>
+
+          <div className={activeTab === 'STG' ? 'block h-full' : 'hidden'}>
+            <SettingsView rtc={rtc} />
+          </div>
         </div>
       </main>
 
