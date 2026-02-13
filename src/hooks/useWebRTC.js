@@ -6,7 +6,20 @@ import { useWebRTC as useWebRTCContext } from '../contexts/WebRTCContext';
  * that radio state is shared across all pages and persists during navigation.
  */
 export const useWebRTC = () => {
-    return useWebRTCContext();
+    const rtc = useWebRTCContext();
+    const { cleanup } = rtc;
+
+    // v112: Minimizing accidental cleanup on component transitions
+    // useEffect(() => { return () => cleanup(); }, [cleanup]); // Replaced by:
+    /*
+    useEffect(() => {
+        return () => {
+            // cleanup(); // Disabled
+        };
+    }, [cleanup]);
+    */
+
+    return rtc;
 };
 
 export default useWebRTC;

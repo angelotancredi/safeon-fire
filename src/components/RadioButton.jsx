@@ -1,16 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, AlertCircle, Wifi, Users, Terminal, ChevronDown, ChevronUp, Volume2, RadioTower, Plus, X, Hash } from 'lucide-react';
-import { useWebRTC } from '../hooks/useWebRTC';
-
-// Tactical Radio UI — Light Theme Rebuild
-const RadioButton = () => {
+const RadioButton = ({ rtc }) => {
     const {
         peers, peerStatus, startSystem, setMuted, error, logs,
         isConnected, peerId, localStream, isTransmitting,
         activeTalkerId, activeVolume, settings,
         availableRooms, isLoadingRooms, fetchRooms, updateSettings
-    } = useWebRTC();
+    } = rtc;
 
     const [isRecording, setIsRecording] = useState(false);
     const [status, setStatus] = useState('OFFLINE');

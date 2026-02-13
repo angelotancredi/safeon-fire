@@ -705,9 +705,10 @@ export const WebRTCProvider = ({ children }) => {
 
 
     // Cleanup on App close
+    // v112: Cleanup disabled on unmount to prevent connection drop during HMR/Navigation
     useEffect(() => {
         return () => {
-            cleanup();
+            // cleanup(); // Temporarily disabled for stability
         };
     }, [cleanup]);
 

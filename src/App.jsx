@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import RadioButton from './components/RadioButton';
 import MapView from './components/MapView';
 import SettingsView from './components/SettingsView';
-import { WebRTCProvider, useWebRTC } from './contexts/WebRTCContext';
+import { WebRTCProvider } from './contexts/WebRTCContext';
+import { useWebRTC } from './hooks/useWebRTC';
 import { Wifi, Battery, MapPin, Menu, User, Users, Bug, AlertCircle, RotateCw, Radio } from 'lucide-react';
 
 // v86: Restored Tactical UI + Global Context
@@ -12,7 +13,7 @@ function AppContent() {
   const [globalError, setGlobalError] = useState(null);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [activeTab, setActiveTab] = useState('RADIO'); // 'RADIO', 'SQUAD', 'MAP', 'LOG', 'STG'
-  // useWebRTC() hook call removed here as it was unused in AppContent. Sub-components manage their own context.
+  const rtc = useWebRTC();
 
   useEffect(() => {
     const handleError = (msg, url, line, col, error) => {
@@ -108,16 +109,16 @@ function AppContent() {
       <main className="flex-1 min-h-0 flex flex-col items-stretch justify-start relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(900px_400px_at_50%_0%,rgba(255,87,34,0.08),transparent_60%)]" />
         <div className="relative flex-1 min-h-0 flex flex-col">
-          {activeTab === 'RADIO' && <RadioButton />}
-          {activeTab === 'SQUAD' && <SquadView />}
-          {activeTab === 'MAP' && <MapView />}
+          {activeTab === 'RADIO' && <RadioButton rtc={rtc} />}
+          {activeTab === 'SQUAD' && <SquadView rtc={rtc} />}
+          {activeTab === 'MAP' && <MapView rtc={rtc} />}
           {activeTab === 'LOG' && (
             <div className="flex-1 flex flex-col items-center justify-center text-tactical-muted text-[10px] uppercase tracking-[0.4em] opacity-40">
               <Wifi className="w-12 h-12 mb-4" />
               Log Engine Initializing...
             </div>
           )}
-          {activeTab === 'STG' && <SettingsView />}
+          {activeTab === 'STG' && <SettingsView rtc={rtc} />}
         </div>
       </main>
 
@@ -179,8 +180,8 @@ const NavButton = ({ icon, label, active, onClick }) => (
   </button>
 );
 
-const SquadView = () => {
-  const { peers, isConnected, peerId, talkingPeers, availableRooms, settings } = useWebRTC();
+const SquadView = ({ rtc }) => {
+  const { peers, isConnected, peerId, talkingPeers, availableRooms, settings } = rtc;
 
   const formatId = (id) => {
     if (!id) return "...";

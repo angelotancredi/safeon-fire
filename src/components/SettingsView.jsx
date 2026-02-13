@@ -1,11 +1,10 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Settings, Volume2, Mic, Smartphone, MapPin, Save, Info, ChevronRight, LogOut } from 'lucide-react';
-import { WebRTCContext, useWebRTC } from '../contexts/WebRTCContext';
 
-const SettingsView = () => {
+const SettingsView = ({ rtc }) => {
     try {
-        const context = useContext(WebRTCContext);
+        const context = rtc;
         // Emergency Fallback as requested by user
         const settings = context?.settings || {
             roomId: 'safe-on-alpha',

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { useWebRTC } from '../hooks/useWebRTC';
 import { LocateFixed, User, Users } from 'lucide-react';
 
 // fix Leaflet default icon issue
@@ -37,8 +36,8 @@ function MapController({ center }) {
     return null;
 }
 
-const MapView = () => {
-    const { myLocation, peerLocations, isConnected } = useWebRTC();
+const MapView = ({ rtc }) => {
+    const { peerLocations, peerId, myLocation, isConnected } = rtc;
     const [mapCenter, setMapCenter] = useState([37.5665, 126.9780]); // Seoul Static Default
     const [hasSetInitial, setHasSetInitial] = useState(false);
 
