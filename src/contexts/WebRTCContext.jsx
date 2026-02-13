@@ -208,10 +208,12 @@ export const WebRTCProvider = ({ children }) => {
         return () => clearInterval(interval);
     }, [fetchRooms]);
 
-    const syncPeersWithPusher = useCallback(() => {
-        if (!channelRef.current || !channelRef.current.members) return;
+    const syncPeersWithPusher = useCallback((passedMembers = null) => {
+        const membersSource = passedMembers || (channelRef.current && channelRef.current.members);
+        if (!membersSource) return;
+
         const membersList = [];
-        channelRef.current.members.each(member => {
+        membersSource.each(member => {
             if (member.id !== myIdRef.current) {
                 membersList.push(member.id);
             }
@@ -355,9 +357,17 @@ export const WebRTCProvider = ({ children }) => {
         // v94: Don't restart if already connected to THIS room
         lastJoinedRoomRef.current = targetRoomId;
 
+        // v109: Update roomId state immediately to reflect target room in UI (STG/Squad)
+        if (manualRoomId) {
+            updateSettings({ roomId: manualRoomId });
+        }
+
         const displayRoom = targetRoomId.split('@@')[0];
         addLog(`JOIN: ${displayRoom.toUpperCase()} Sequence Started`);
         await cleanup();
+
+        // v109: Clear peers immediately to prevent "ghost" members from previous room
+        setPeers([]);
 
         // v99/v100: Small delay to allow browser/pusher settlement after cleanup
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -366,7 +376,7 @@ export const WebRTCProvider = ({ children }) => {
         setError(null);
         setIsLeader(leaderStatus); // v97: Set leader status
 
-        // v93/v100: Increased timeout to 20s (2.5x original) for robust auth
+        addLog(`STEP 0: AUTH_TIMEOUT SET (30s)`);
         timeoutRef.current = setTimeout(() => {
             setStatus(prev => {
                 if (prev === 'STARTING') {
@@ -489,7 +499,7 @@ export const WebRTCProvider = ({ children }) => {
                 addLog('STEP 5: SUB OK');
                 setStatus('CONNECTED');
                 setPeerId(myIdRef.current);
-                syncPeersWithPusher();
+                syncPeersWithPusher(members);
 
                 members.each(member => {
                     if (member.id !== myIdRef.current) {

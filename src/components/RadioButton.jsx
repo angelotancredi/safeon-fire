@@ -452,7 +452,6 @@ const RadioButton = () => {
                                             setIsCreating(true);
                                             const formattedName = newRoomName.trim().toLowerCase().replace(/\s+/g, '-');
                                             const fullId = `${formattedName}@@${newRoomPin}`;
-                                            updateSettings({ roomId: fullId });
 
                                             // Delay modal close slightly to show feedback
                                             setTimeout(() => {
