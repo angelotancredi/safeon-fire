@@ -519,7 +519,8 @@ export const WebRTCProvider = ({ children }) => {
             });
 
             addLog('STEP 5: SYNCING...'); // v108: Corrected numbering
-            const channel = pusher.subscribe(`presence-${targetRoomId}`);
+            const safeRoomId = String(targetRoomId).replace(/[^a-zA-Z0-9_-]/g, '_');
+            const channel = pusher.subscribe(`presence-${safeRoomId}`);
             channelRef.current = channel;
 
             channel.bind('pusher:subscription_succeeded', (members) => {
