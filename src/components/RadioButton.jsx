@@ -253,13 +253,12 @@ const RadioButton = () => {
                                 <div className="absolute inset-0 bg-white/95 flex items-center justify-center z-10">
                                     <div className="flex flex-col items-center">
                                         <div className="w-8 h-8 border-4 border-tactical-accent border-t-transparent rounded-full animate-spin mb-3" />
-                                        <span className="text-[10px] font-bold text-tactical-fg tracking-widest uppercase">
-                                            초기화 중...
+                                        <span className="text-[14px] font-black text-tactical-danger animate-pulse bg-yellow-200 px-2 rounded tracking-widest uppercase">
+                                            DEPLOY_TEST_V102
                                         </span>
                                     </div>
-                                </div>
                             )}
-                        </motion.button>
+                                </motion.button>
                     </div>
 
                     {/* v82: Active Talker Indicator moved below the button */}
