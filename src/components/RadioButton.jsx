@@ -249,7 +249,7 @@ const RadioButton = () => {
                             </span>
 
                             {/* Initializing Overlay */}
-                            {peerStatus === 'STARTING' && (
+                            {status === 'STARTING' && (
                                 <div className="absolute inset-0 bg-white/95 flex items-center justify-center z-10">
                                     <div className="flex flex-col items-center">
                                         <div className="w-8 h-8 border-4 border-tactical-accent border-t-transparent rounded-full animate-spin mb-3" />
@@ -257,8 +257,9 @@ const RadioButton = () => {
                                             DEPLOY_TEST_V102
                                         </span>
                                     </div>
+                                </div>
                             )}
-                                </motion.button>
+                        </motion.button>
                     </div>
 
                     {/* v82: Active Talker Indicator moved below the button */}
