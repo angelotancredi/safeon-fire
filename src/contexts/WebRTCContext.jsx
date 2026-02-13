@@ -543,6 +543,7 @@ export const WebRTCProvider = ({ children }) => {
                 if (timeoutRef.current) clearTimeout(timeoutRef.current);
                 setStatus('OFFLINE');
                 setError(`SUB_FAILED: ${status}`);
+                lastJoinedRoomRef.current = null; // ✅ Reset to allow retry
             });
 
             channel.bind('pusher:member_added', (member) => {
