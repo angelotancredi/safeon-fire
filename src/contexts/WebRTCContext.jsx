@@ -345,19 +345,23 @@ export const WebRTCProvider = ({ children }) => {
         }
     }, [addLog, createPC]);
 
-    const startSystem = useCallback(async () => {
+    const startSystem = useCallback(async (manualRoomId = null) => {
+        // v96: Use passed ID or falling back to current settings
+        const targetRoomId = manualRoomId || settings.roomId;
+
         if (status === 'STARTING') return;
 
         // v94: Don't restart if already connected to THIS room
-        if (status === 'CONNECTED' && lastJoinedRoomRef.current === settings.roomId) {
+        if (status === 'CONNECTED' && lastJoinedRoomRef.current === targetRoomId) {
             return;
         }
 
-        addLog('JOIN: Connection Sequence Started');
+        const displayRoom = targetRoomId.split('@@')[0];
+        addLog(`JOIN: ${displayRoom.toUpperCase()} Sequence Started`);
         await cleanup();
         setStatus('STARTING');
         setError(null);
-        lastJoinedRoomRef.current = settings.roomId;
+        lastJoinedRoomRef.current = targetRoomId;
 
         // v93: Increased timeout to 16s (2x upgrade)
         timeoutRef.current = setTimeout(() => {
@@ -445,7 +449,7 @@ export const WebRTCProvider = ({ children }) => {
                     addLog(`[System] Reconnecting... (Attempt ${retryCountRef.current}/3)`);
                     if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
                     retryTimeoutRef.current = setTimeout(() => {
-                        startSystem();
+                        startSystem(targetRoomId); // v96: Pass the targetRoomId to retry
                     }, 3000); // 3s interval
                 } else {
                     addLog(`[System] CONNECTION FAILED after 3 attempts.`);
@@ -472,7 +476,7 @@ export const WebRTCProvider = ({ children }) => {
                 }
             });
 
-            const channel = pusher.subscribe(`presence-${settings.roomId}`);
+            const channel = pusher.subscribe(`presence-${targetRoomId}`);
             channelRef.current = channel;
 
             channel.bind('pusher:subscription_succeeded', (members) => {
@@ -657,6 +661,8 @@ export const WebRTCProvider = ({ children }) => {
     }, [settings.micSens]);
 
     // v91: Auto-reconnect when roomId changes
+    // v96: Removed auto-trigger to allow manual JOIN control as requested.
+    /*
     useEffect(() => {
         // v94: Only trigger if the room actually changed from what we last tried
         if (settings.roomId !== lastJoinedRoomRef.current && status !== 'STARTING') {
@@ -665,6 +671,7 @@ export const WebRTCProvider = ({ children }) => {
             startSystem();
         }
     }, [settings.roomId, status, addLog, startSystem]);
+    */
 
     // Cleanup on App close
     useEffect(() => {

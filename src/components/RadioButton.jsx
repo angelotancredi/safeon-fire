@@ -48,7 +48,7 @@ const RadioButton = () => {
         else if (peers.length > 0) setStatus('ONLINE');
         else if (isConnected) setStatus('STANDBY');
         else if (peerStatus === 'STARTING') setStatus('JOINING...');
-        else setStatus('OFFLINE');
+        else setStatus('DISCONNECTED');
     }, [error, peers, isConnected, peerStatus, isRecording]);
 
     // v79: Differentiated squelch sounds based on action type
@@ -112,7 +112,7 @@ const RadioButton = () => {
                         <div className="grid grid-cols-2 gap-2 w-full">
                             <StatusCard
                                 label="SYSTEM"
-                                value={status}
+                                value={status === 'DISCONNECTED' ? 'JOIN RADIO' : status}
                                 tone={statusTone}
                                 icon={error ? <AlertCircle className="w-4 h-4" /> : <Wifi className="w-4 h-4" />}
                                 onClick={() => {
@@ -375,6 +375,7 @@ const RadioButton = () => {
                                                         setPinError(false);
                                                     } else {
                                                         updateSettings({ roomId: room.id });
+                                                        startSystem(room.id);
                                                         setIsModalOpen(false);
                                                     }
                                                 }}
@@ -419,12 +420,14 @@ const RadioButton = () => {
                                 <form
                                     onSubmit={(e) => {
                                         e.preventDefault();
-                                        if (newRoomName.trim()) {
+                                        if (newRoomName.trim() && newRoomPin.length === 4) {
                                             const formattedName = newRoomName.trim().toLowerCase().replace(/\s+/g, '-');
-                                            updateSettings({ roomId: formattedName });
-                                            // startSystem() will be called by useEffect in WebRTCContext
+                                            const fullRoomId = `${formattedName}@@${newRoomPin}`;
+                                            updateSettings({ roomId: fullRoomId });
+                                            startSystem(fullRoomId);
                                             setIsModalOpen(false);
                                             setNewRoomName('');
+                                            setNewRoomPin('');
                                         }
                                     }}
                                     className="flex flex-col space-y-4"
@@ -541,6 +544,7 @@ const RadioButton = () => {
                                                         const [_, correctPin] = keypadRoom.id.split('@@');
                                                         if (nextPin === correctPin) {
                                                             updateSettings({ roomId: keypadRoom.id });
+                                                            startSystem(keypadRoom.id);
                                                             setIsKeypadOpen(false);
                                                             setIsModalOpen(false);
                                                         } else {
