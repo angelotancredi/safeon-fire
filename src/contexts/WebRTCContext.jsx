@@ -395,13 +395,13 @@ export const WebRTCProvider = ({ children }) => {
                 console.warn("[Radio-v94] Pre-cleanup warning:", err);
             }
 
-            addLog('STEP 2: Requesting Fresh Mic');
+            addLog('STEP 2: Requesting MIC...');
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: { echoCancellation: true, noiseSuppression: true }
             });
             localStreamRef.current = stream;
             setLocalStream(stream);
-            addLog('STEP 3: Mic OK');
+            addLog('STEP 3: MIC OK');
 
             // v90: Initialize local audio analyser
             try {
@@ -464,7 +464,7 @@ export const WebRTCProvider = ({ children }) => {
             };
 
             pusher.connection.bind('state_change', (states) => {
-                addLog(`PRO-LOG: Pusher ${states.current}`);
+                addLog(`[Pusher] State: ${states.current.toUpperCase()}`);
                 if (states.current === 'connected') {
                     retryCountRef.current = 0; // Reset on success
                     if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
