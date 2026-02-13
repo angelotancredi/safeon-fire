@@ -184,7 +184,7 @@ const NavButton = ({ icon, label, active, onClick }) => (
 );
 
 const SquadView = () => {
-  const { peers, isConnected, peerId, talkingPeers } = useWebRTC();
+  const { peers, isConnected, peerId, talkingPeers, availableRooms, settings } = useWebRTC();
 
   const formatId = (id) => {
     if (!id) return "...";
@@ -192,62 +192,79 @@ const SquadView = () => {
     return `삼정-${cleanId.slice(0, 4).toUpperCase()}`;
   };
 
+  const activeChannelName = settings.roomId.split('@@')[0];
+
   return (
-    <div className="flex-1 flex flex-col w-full min-h-0">
-      <div className="flex items-center justify-between mb-3 px-2">
-        <h2 className="text-[13px] font-black tracking-[0.2em] text-tactical-muted uppercase flex items-center">
-          <User className="w-3.5 h-3.5 mr-2" /> Active Squad
-        </h2>
-        <span className="text-[10px] font-mono font-bold text-tactical-muted opacity-80">{peers.length + (isConnected ? 1 : 0)} Online</span>
-      </div>
+    <div className="flex-1 flex flex-col w-full min-h-0 bg-tactical-bg p-4 overflow-y-auto">
+      <div className="max-w-md mx-auto w-full space-y-6">
+        <div className="flex items-center justify-between mb-4 px-2">
+          <h2 className="text-[14px] font-black tracking-[0.2em] text-tactical-muted uppercase flex items-center">
+            <Users className="w-4 h-4 mr-2" /> Sector Status
+          </h2>
+          <span className="text-[10px] font-mono font-bold text-tactical-muted opacity-80">{availableRooms.length} Active Channels</span>
+        </div>
 
-      <div className="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-        {/* Local User First */}
-        {isConnected && (
-          <div className="p-4 bg-white border border-tactical-accent/30 rounded-2xl shadow-sm flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-2 h-2 rounded-full animate-pulse bg-tactical-accent" />
-              <div>
-                <div className="text-[14px] font-black text-tactical-fg tracking-tight">
-                  {formatId(peerId)} (YOU)
+        <div className="space-y-4">
+          {availableRooms.length > 0 ? (
+            availableRooms.map((room) => {
+              const [roomName] = room.id.split('@@');
+              const isActive = room.id === settings.roomId && isConnected;
+
+              return (
+                <div key={room.id} className={`bg-white border rounded-[32px] overflow-hidden transition-all shadow-sm ${isActive ? 'border-tactical-accent/40 ring-1 ring-tactical-accent/5' : 'border-tactical-border'}`}>
+                  {/* Channel Header */}
+                  <div className={`p-4 flex items-center justify-between ${isActive ? 'bg-tactical-accent/5' : ''}`}>
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isActive ? 'bg-tactical-accent text-white' : 'bg-tactical-surface text-tactical-muted'}`}>
+                        <Radio className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-[14px] font-black text-tactical-fg uppercase tracking-tight flex items-center">
+                          {roomName}
+                          {isActive && <span className="ml-2 px-1.5 py-0.5 bg-tactical-accent text-white text-[8px] rounded uppercase font-black">Online</span>}
+                        </div>
+                        <div className="text-[10px] text-tactical-muted font-bold uppercase opacity-60">Frequency Shared • {room.userCount} Nodes</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Members List (Only for Active Channel) */}
+                  {isActive && (
+                    <div className="px-4 pb-4 space-y-2">
+                      <div className="pt-2 border-t border-tactical-border/50 space-y-2">
+                        {/* Me */}
+                        <div className="p-3 bg-tactical-surface rounded-2xl flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-2 h-2 rounded-full bg-tactical-accent animate-pulse" />
+                            <span className="text-[12px] font-black text-tactical-fg">{formatId(peerId)} <span className="opacity-40 text-[10px] ml-1">(YOU)</span></span>
+                          </div>
+                          <span className="text-[9px] font-black text-tactical-accent uppercase">MASTER</span>
+                        </div>
+                        {/* Peers */}
+                        {peers.map(peer => (
+                          <div key={peer} className="p-3 bg-white border border-tactical-border rounded-2xl flex items-center justify-between">
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-2 h-2 rounded-full ${talkingPeers.has(peer) ? 'bg-tactical-ok animate-pulse' : 'bg-tactical-muted/40'}`} />
+                              <span className="text-[12px] font-bold text-tactical-fg">{formatId(peer)}</span>
+                            </div>
+                            {talkingPeers.has(peer) && (
+                              <span className="text-[8px] font-black text-tactical-ok uppercase">Talking...</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="text-[9px] text-tactical-muted font-mono uppercase">
-                  Connected • Signal Optimal
-                </div>
-              </div>
+              );
+            })
+          ) : (
+            <div className="py-20 flex flex-col items-center justify-center opacity-40">
+              <Wifi className="w-10 h-10 mb-4" />
+              <p className="text-[10px] font-black tracking-widest uppercase">No Active Sectors Found</p>
             </div>
-          </div>
-        )}
-
-        {/* Remote Peers */}
-        {peers.map(id => (
-          <div key={id} className={`p-4 bg-white border rounded-2xl shadow-sm flex items-center justify-between transition-all ${talkingPeers.has(id) ? 'border-tactical-ok ring-1 ring-tactical-ok/20' : 'border-tactical-border'
-            }`}>
-            <div className="flex items-center space-x-3">
-              <div className={`w-2 h-2 rounded-full ${talkingPeers.has(id) ? 'bg-tactical-ok animate-pulse' : 'bg-tactical-muted/40'}`} />
-              <div>
-                <div className="text-[14px] font-black text-tactical-fg tracking-tight">
-                  {formatId(id)}
-                </div>
-                <div className="text-[9px] text-tactical-muted font-mono uppercase">
-                  Node Link • Signal Stable
-                </div>
-              </div>
-            </div>
-            {talkingPeers.has(id) && (
-              <span className="bg-tactical-ok/10 text-tactical-ok text-[9px] font-black px-2 py-1 rounded-lg border border-emerald-200 animate-pulse">
-                TALKING...
-              </span>
-            )}
-          </div>
-        ))}
-
-        {peers.length === 0 && !isConnected && (
-          <div className="flex-1 flex flex-col items-center justify-center p-12 text-center opacity-40">
-            <Wifi className="w-8 h-8 mb-4 " />
-            <p className="text-[10px] font-black tracking-widest uppercase">No Active Squad Members</p>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

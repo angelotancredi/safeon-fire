@@ -16,13 +16,20 @@ const SettingsView = () => {
         const updateSettings = context?.updateSettings || (() => { });
         const peerId = context?.peerId || 'OFFLINE';
 
-        const [tempRoomId, setTempRoomId] = useState(settings.roomId);
+        const [tempRoomId, setTempRoomId] = useState(settings.roomId.split('@@')[0]);
 
         const handleSaveRoom = () => {
             if (tempRoomId.trim()) {
-                updateSettings({ roomId: tempRoomId.trim() });
+                const activePin = settings.roomId.split('@@')[1] || '';
+                const fullId = activePin ? `${tempRoomId.trim()}@@${activePin}` : tempRoomId.trim();
+                updateSettings({ roomId: fullId });
             }
         };
+
+        // v105: Keep tempRoomId in sync with settings when external changes occur (like joining from list)
+        useEffect(() => {
+            setTempRoomId(settings.roomId.split('@@')[0]);
+        }, [settings.roomId]);
 
         if (!settings) {
             return (
