@@ -188,7 +188,7 @@ const SquadView = () => {
     return `삼정-${cleanId.slice(0, 4).toUpperCase()}`;
   };
 
-  const activeChannelName = settings.roomId.split('@@')[0];
+  const activeChannelName = settings?.roomId?.split('@@')[0] || '---';
 
   return (
     <div className="flex-1 flex flex-col w-full min-h-0 bg-tactical-bg p-4 overflow-y-auto">
@@ -204,7 +204,7 @@ const SquadView = () => {
           {availableRooms.length > 0 ? (
             availableRooms.map((room) => {
               const [roomName] = room.id.split('@@');
-              const isActive = room.id === settings.roomId && isConnected;
+              const isActive = room.id === settings?.roomId && isConnected;
 
               return (
                 <div key={room.id} className={`bg-white border rounded-[32px] overflow-hidden transition-all shadow-sm ${isActive ? 'border-tactical-accent/40 ring-1 ring-tactical-accent/5' : 'border-tactical-border'}`}>

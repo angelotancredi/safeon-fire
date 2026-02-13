@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Settings, Volume2, Mic, Smartphone, MapPin, Save, Info, ChevronRight, LogOut } from 'lucide-react';
 import { WebRTCContext, useWebRTC } from '../contexts/WebRTCContext';
@@ -16,11 +16,11 @@ const SettingsView = () => {
         const updateSettings = context?.updateSettings || (() => { });
         const peerId = context?.peerId || 'OFFLINE';
 
-        const [tempRoomId, setTempRoomId] = useState(settings.roomId.split('@@')[0]);
+        const [tempRoomId, setTempRoomId] = useState(settings?.roomId?.split('@@')[0] || '');
 
         const handleSaveRoom = () => {
             if (tempRoomId.trim()) {
-                const activePin = settings.roomId.split('@@')[1] || '';
+                const activePin = settings?.roomId?.split('@@')[1] || '';
                 const fullId = activePin ? `${tempRoomId.trim()}@@${activePin}` : tempRoomId.trim();
                 updateSettings({ roomId: fullId });
             }
@@ -28,8 +28,8 @@ const SettingsView = () => {
 
         // v105: Keep tempRoomId in sync with settings when external changes occur (like joining from list)
         useEffect(() => {
-            setTempRoomId(settings.roomId.split('@@')[0]);
-        }, [settings.roomId]);
+            setTempRoomId(settings?.roomId?.split('@@')[0] || '');
+        }, [settings?.roomId]);
 
         if (!settings) {
             return (
