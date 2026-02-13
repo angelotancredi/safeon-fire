@@ -188,7 +188,19 @@ const SquadView = () => {
     return `삼정-${cleanId.slice(0, 4).toUpperCase()}`;
   };
 
-  const activeChannelName = settings?.roomId?.split('@@')[0] || '---';
+  const effectiveRooms = availableRooms.map(r => {
+    if (r.id === settings?.roomId && isConnected) {
+      return { ...r, userCount: Math.max(r.userCount, peers.length + 1) };
+    }
+    return r;
+  });
+
+  if (isConnected && settings?.roomId && !effectiveRooms.find(r => r.id === settings.roomId)) {
+    effectiveRooms.unshift({
+      id: settings.roomId,
+      userCount: peers.length + 1
+    });
+  }
 
   return (
     <div className="flex-1 flex flex-col w-full min-h-0 bg-tactical-bg p-4 overflow-y-auto">
@@ -197,12 +209,12 @@ const SquadView = () => {
           <h2 className="text-[14px] font-black tracking-[0.2em] text-tactical-muted uppercase flex items-center">
             <Users className="w-4 h-4 mr-2" /> Sector Status
           </h2>
-          <span className="text-[10px] font-mono font-bold text-tactical-muted opacity-80">{availableRooms.length} Active Channels</span>
+          <span className="text-[10px] font-mono font-bold text-tactical-muted opacity-80">{effectiveRooms.length} Active Channels</span>
         </div>
 
         <div className="space-y-4">
-          {availableRooms.length > 0 ? (
-            availableRooms.map((room) => {
+          {effectiveRooms.length > 0 ? (
+            effectiveRooms.map((room) => {
               const [roomName] = room.id.split('@@');
               const isActive = room.id === settings?.roomId && isConnected;
 

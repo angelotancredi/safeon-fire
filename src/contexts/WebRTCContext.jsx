@@ -377,7 +377,7 @@ export const WebRTCProvider = ({ children }) => {
                 }
                 return prev;
             });
-        }, 20000);
+        }, 30000);
 
         try {
             // v94: Force stop ALL existing tracks in the browser to resolve conflicts
@@ -432,7 +432,7 @@ export const WebRTCProvider = ({ children }) => {
 
             stream.getAudioTracks().forEach(t => t.enabled = false);
 
-            addLog('STEP 4: INITIALIZING PUSHER');
+            addLog('STEP 4: HANDSHAKE...'); // v108: Changed from INITIALIZING
             const pusher = new Pusher(PUSHER_CONFIG.key, {
                 cluster: PUSHER_CONFIG.cluster,
                 authEndpoint: "/api/pusher-auth",
@@ -480,7 +480,7 @@ export const WebRTCProvider = ({ children }) => {
                 }
             });
 
-            addLog('STEP 4: SUBSCRIBING');
+            addLog('STEP 5: SYNCING...'); // v108: Corrected numbering
             const channel = pusher.subscribe(`presence-${targetRoomId}`);
             channelRef.current = channel;
 

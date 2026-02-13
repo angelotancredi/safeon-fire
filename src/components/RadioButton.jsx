@@ -23,6 +23,7 @@ const RadioButton = () => {
     const [inputPin, setInputPin] = useState('');
     const [pinError, setPinError] = useState(false);
     const [keypadMode, setKeypadMode] = useState('JOIN'); // 'JOIN' | 'CREATE'
+    const [isCreating, setIsCreating] = useState(false); // v108: Creation loading state
     const animationFrameRef = useRef(null);
     const squelchStartAudioRef = useRef(null);
     const squelchStopAudioRef = useRef(null);
@@ -448,13 +449,19 @@ const RadioButton = () => {
                                     <form onSubmit={(e) => {
                                         e.preventDefault();
                                         if (newRoomName.trim() && newRoomPin.length === 4) {
+                                            setIsCreating(true);
                                             const formattedName = newRoomName.trim().toLowerCase().replace(/\s+/g, '-');
                                             const fullId = `${formattedName}@@${newRoomPin}`;
                                             updateSettings({ roomId: fullId });
-                                            startSystem(fullId, true);
-                                            setIsModalOpen(false);
-                                            setNewRoomName('');
-                                            setNewRoomPin('');
+
+                                            // Delay modal close slightly to show feedback
+                                            setTimeout(() => {
+                                                startSystem(fullId, true);
+                                                setIsModalOpen(false);
+                                                setIsCreating(false);
+                                                setNewRoomName('');
+                                                setNewRoomPin('');
+                                            }, 400);
                                         }
                                     }} className="space-y-5">
                                         <div className="space-y-4">
@@ -487,10 +494,12 @@ const RadioButton = () => {
                                                 </div>
                                                 <button
                                                     type="submit"
-                                                    disabled={!newRoomName.trim() || newRoomPin.length !== 4}
-                                                    className="h-14 px-6 bg-tactical-accent text-white rounded-2xl font-black text-xs tracking-widest uppercase shadow-xl shadow-tactical-accent/30 active:scale-95 disabled:opacity-50 disabled:grayscale transition-all whitespace-nowrap"
+                                                    disabled={!newRoomName.trim() || newRoomPin.length !== 4 || isCreating}
+                                                    className="h-14 px-6 bg-tactical-accent text-white rounded-2xl font-black text-xs tracking-widest uppercase shadow-xl shadow-tactical-accent/30 active:scale-95 disabled:opacity-50 disabled:grayscale transition-all whitespace-nowrap flex items-center justify-center min-w-[100px]"
                                                 >
-                                                    만들기
+                                                    {isCreating ? (
+                                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                    ) : '만들기'}
                                                 </button>
                                             </div>
                                         </div>
