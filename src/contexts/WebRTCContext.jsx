@@ -357,13 +357,15 @@ export const WebRTCProvider = ({ children }) => {
             return;
         }
 
+        // v98: Update ref IMMEDIATELY to prevent recursive calls from re-renders
+        lastJoinedRoomRef.current = targetRoomId;
+
         const displayRoom = targetRoomId.split('@@')[0];
         addLog(`JOIN: ${displayRoom.toUpperCase()} Sequence Started`);
         await cleanup();
         setStatus('STARTING');
         setError(null);
         setIsLeader(leaderStatus); // v97: Set leader status
-        lastJoinedRoomRef.current = targetRoomId;
 
         // v93: Increased timeout to 16s (2x upgrade)
         timeoutRef.current = setTimeout(() => {

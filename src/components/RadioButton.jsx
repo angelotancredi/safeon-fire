@@ -410,7 +410,7 @@ const RadioButton = () => {
                                         <div className="w-16 h-16 bg-tactical-surface rounded-full flex items-center justify-center mb-4">
                                             <RadioTower className="w-8 h-8 text-tactical-muted opacity-30" />
                                         </div>
-                                        <h4 className="text-sm font-black text-tactical-fg mb-1 uppercase">현재 개설된 채널이 없습니다.</h4>
+                                        <h4 className="text-sm font-bold text-tactical-fg mb-1 uppercase">현재 개설된 채널이 없습니다.</h4>
                                         <p className="text-[10px] text-tactical-muted font-bold tracking-widest uppercase px-6">새로운 채널을 개설하여 대화를 시작해 보세요.</p>
                                     </div>
                                 )}
@@ -445,7 +445,7 @@ const RadioButton = () => {
                                                 value={newRoomName}
                                                 onChange={(e) => setNewRoomName(e.target.value)}
                                                 placeholder="채널 이름을 입력하세요"
-                                                className="w-full h-14 bg-tactical-surface border border-tactical-border rounded-2xl pl-12 pr-4 text-sm font-black tracking-tight focus:outline-none focus:ring-4 focus:ring-tactical-accent/10 focus:border-tactical-accent focus:bg-white transition-all uppercase"
+                                                className="w-full h-14 bg-tactical-surface border border-tactical-border rounded-2xl pl-12 pr-4 text-sm font-bold tracking-tight focus:outline-none focus:ring-4 focus:ring-tactical-accent/10 focus:border-tactical-accent focus:bg-white transition-all uppercase"
                                             />
                                         </div>
                                         <div className="flex space-x-2">
@@ -458,7 +458,7 @@ const RadioButton = () => {
                                                     value={newRoomPin}
                                                     onChange={(e) => setNewRoomPin(e.target.value.replace(/\D/g, ''))}
                                                     placeholder="비밀번호 4자리 숫자"
-                                                    className="w-full h-14 bg-tactical-surface border border-tactical-border rounded-2xl pl-12 pr-4 text-sm font-bold tracking-[0.5em] focus:outline-none focus:ring-4 focus:ring-tactical-accent/10 focus:border-tactical-accent focus:bg-white transition-all text-center"
+                                                    className="w-full h-14 bg-tactical-surface border border-tactical-border rounded-2xl pl-12 pr-4 text-sm font-bold focus:outline-none focus:ring-4 focus:ring-tactical-accent/10 focus:border-tactical-accent focus:bg-white transition-all text-center"
                                                 />
                                             </div>
                                             <button
@@ -506,7 +506,7 @@ const RadioButton = () => {
                         >
                             <div className="flex flex-col items-center space-y-6">
                                 <div className="text-center space-y-1">
-                                    <h3 className="text-lg font-black text-tactical-fg uppercase tracking-tight">SECURE ACCESS</h3>
+                                    <h3 className="text-lg font-bold text-tactical-fg uppercase tracking-tight">SECURE ACCESS</h3>
                                     <p className="text-[10px] text-tactical-muted font-bold tracking-widest uppercase">{keypadRoom?.id.split('@@')[0]} 채널 비밀번호 4자리 입력</p>
                                 </div>
 
