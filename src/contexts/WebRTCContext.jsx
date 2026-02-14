@@ -407,28 +407,12 @@ export const WebRTCProvider = ({ children }) => {
 
         lastJoinedRoomRef.current = targetRoomId;
 
-        // targetRoomId = "동상" 또는 "동상@@1234"
-        const raw = String(targetRoomId || "").trim();
-        const [pureLabel, pin] = raw.split("@@");
-
-        // ✅ 한글 라벨
-        const roomLabel = pureLabel || "무전";
-
-        // ✅ 키는 라벨 기준으로만 생성 (pin 제외)
-        const roomKey = makeRoomKey(roomLabel);
+        // v122: Generate stable room key
+        const roomKey = makeRoomKey(targetRoomId);
         roomKeyRef.current = roomKey;
 
-        // ✅ channelId = 표시명 + 키
-        const channelId = `${encodeURIComponent(roomLabel)}@@${roomKey}`;
-        channelIdRef.current = channelId;
-
-        // UI 상태
-        updateSettings({
-            roomId: channelId,
-            roomKey,
-            roomLabel,
-            pin: pin || null
-        });
+        // v109/v110: Update UI state immediately
+        updateSettings({ roomId: targetRoomId, roomKey });
 
         const displayRoom = manualRoomId; // Show clean name in logs
         addLog(`JOIN: ${displayRoom.toUpperCase()} Sequence Started`);
@@ -570,8 +554,8 @@ export const WebRTCProvider = ({ children }) => {
             });
 
             addLog('STEP 5: SYNCING...'); // v108: Corrected numbering
-            // v126: Use encoded Channel ID for subscription (supports Korean)
-            const channel = pusher.subscribe(`presence-${channelIdRef.current}`);
+            // v122: Use stable room key for subscription
+            const channel = pusher.subscribe(`presence-${roomKeyRef.current}`);
             channelRef.current = channel;
 
             channel.bind('pusher:subscription_succeeded', (members) => {

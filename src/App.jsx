@@ -207,16 +207,17 @@ const SquadView = ({ rtc }) => {
   const { peers, isConnected, peerId, talkingPeers, availableRooms, settings } = rtc;
 
   // ✅ 보기 좋은 채널명 규칙(서버/기기 상관 없이 동일)
+  const ROOM_LABEL_MAP = {
+    "R_69630F74": "동상",
+    "R_182C1BFB": "지휘",
+  };
+
   const prettyRoomName = (roomId) => {
     const raw = String(roomId || "");
-    const [encoded] = raw.split("@@"); // 인코딩된 라벨 추출
+    const [head] = raw.split("@@");
+    const key = head || raw || "radio";
 
-    let key;
-    try {
-      key = decodeURIComponent(encoded);
-    } catch {
-      key = encoded;
-    }
+    if (ROOM_LABEL_MAP[key]) return ROOM_LABEL_MAP[key];
 
     // R_69630F74 같은 형태를 CH-0F74로 표시
     // (Pusher channel은 보통 'r_' 소문자로 생성되므로 대소문자 모두 대응)
@@ -224,7 +225,7 @@ const SquadView = ({ rtc }) => {
       return `CH-${key.slice(-4).toUpperCase()}`;
     }
 
-    return key || "radio";
+    return key; // 그 외는 그대로
   };
 
   // callsign도 동일 규칙 적용
