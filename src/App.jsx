@@ -209,8 +209,14 @@ const SquadView = ({ rtc }) => {
   // ✅ 보기 좋은 채널명 규칙(서버/기기 상관 없이 동일)
   const prettyRoomName = (roomId) => {
     const raw = String(roomId || "");
-    const [head] = raw.split("@@"); // 기존 로직 유지
-    const key = head || raw || "radio";
+    const [encoded] = raw.split("@@"); // 인코딩된 라벨 추출
+
+    let key;
+    try {
+      key = decodeURIComponent(encoded);
+    } catch {
+      key = encoded;
+    }
 
     // R_69630F74 같은 형태를 CH-0F74로 표시
     // (Pusher channel은 보통 'r_' 소문자로 생성되므로 대소문자 모두 대응)
@@ -218,7 +224,7 @@ const SquadView = ({ rtc }) => {
       return `CH-${key.slice(-4).toUpperCase()}`;
     }
 
-    return key; // 그 외는 그대로
+    return key || "radio";
   };
 
   // callsign도 동일 규칙 적용
