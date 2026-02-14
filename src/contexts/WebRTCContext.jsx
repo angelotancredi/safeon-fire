@@ -590,7 +590,7 @@ export const WebRTCProvider = ({ children }) => {
                                 socket_id: socketId,
                                 channel_name: channel.name,
                                 user_id: myIdRef.current,
-                                pin: (pinRef.current || settings.pin || "").trim(),
+                                pin: (pinRef.current || "").trim(),
                                 // roomKey/roomLabel은 보내도 되고 안 보내도 됨 (서버 검증은 channel_name 기준)
                                 roomKey: roomKeyRef.current,
                                 roomLabel: settings.roomLabel || "",
