@@ -452,6 +452,8 @@ const RadioButton = ({ rtc }) => {
                                                         // ✅ FIX 4 — 조인 시 settings.roomId 덮어쓰기 제거
                                                         startSystem(room.id);
                                                         setIsModalOpen(false);
+                                                        // v132: Force Refresh after join
+                                                        setTimeout(() => fetchRooms(), 500);
                                                     }
                                                 }}
                                                 className="w-full p-4 rounded-2xl border border-tactical-border hover:border-tactical-accent hover:bg-tactical-accent/5 transition-all text-left flex items-center justify-between group"
@@ -659,6 +661,8 @@ const RadioButton = ({ rtc }) => {
                                                                     startSystem(rName, rPin);
                                                                     setIsKeypadOpen(false);
                                                                     setIsModalOpen(false);
+                                                                    // v132: Force Refresh after join
+                                                                    setTimeout(() => fetchRooms(), 500);
                                                                 }, 150);
                                                             } else {
                                                                 // Error logic

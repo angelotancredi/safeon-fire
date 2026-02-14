@@ -423,46 +423,46 @@ export const WebRTCProvider = ({ children }) => {
         }
     }, [addLog, createPC]);
 
-    // v110: Refactored startSystem with explicit password support and Korean feedback
-    const startSystem = useCallback(async (manualRoomId = null, password = null, leaderStatus = false) => {
-        if (!manualRoomId) return;
+    // v132: Refactored startSystem - Field Recovery Guide
+    // Strict Label-to-Key conversion to match Backend Logic
+    const startSystem = useCallback(async (inputRoomLabel = null, inputPin = null) => {
+        if (!inputRoomLabel) return;
 
-        // 1) 입력 파싱
-        const raw = String(manualRoomId || '').trim();
-        const [labelPartRaw, maybeSecond] = raw.split('@@');
-        const label = String(labelPartRaw || '').trim() || '무전';
+        // 1. Label/Pin Parsing
+        const rawLabel = String(inputRoomLabel || '').trim();
+        const pin = (inputPin || pinRef.current || '').trim();
 
-        // password 인자를 우선, 없으면 "label@@pin" 형태에서 pin 추출
-        const pin = (password ?? (maybeSecond && !/^R_[0-9A-F]{8}$/i.test(String(maybeSecond).trim()) ? String(maybeSecond).trim() : '') ?? '').trim();
+        // 2. Room Key Generation (FNV-1a 32bit Hash - BACKEND MATCHING)
+        // If input looks like R_XXXXXXXX, use it. Otherwise hash the label.
+        let roomKey = rawLabel;
+        const isHashKey = /^R_[0-9A-F]{8}$/i.test(rawLabel);
 
-        const toRoomKey = (v) => String(v || '').trim().toUpperCase();
-        const isRoomKey = (v) => /^R_[0-9A-F]{8}$/.test(toRoomKey(v));
+        if (!isHashKey) {
+            // Hash Logic: Mirrors api/rooms-upsert.js
+            let h = 2166136261;
+            const s = rawLabel.toLowerCase();
+            for (let i = 0; i < s.length; i++) {
+                h ^= s.charCodeAt(i);
+                h = Math.imul(h, 16777619);
+            }
+            roomKey = `R_${(h >>> 0).toString(16).toUpperCase()}`;
+        }
 
-        // 2) roomKey 결정 (절대 pin 섞지 않기)
-        let roomKey;
-
-        if (isRoomKey(raw)) {
-            // 사용자가 이미 roomKey로 들어온 경우
-            roomKey = toRoomKey(raw);
-        } else if (isRoomKey(maybeSecond)) {
-            // "동상@@R_XXXX" 형태
-            roomKey = toRoomKey(maybeSecond);
-        } else {
-            // 라벨 기반 (핵심: label만으로 키 생성)
-            roomKey = makeRoomKey(label);
+        // 3. Race Condition Fix: Update Refs IMMEDIATELY logic
+        if (roomKey === roomKeyRef.current && isConnected) {
+            console.log("[WebRTC] Already in room:", rawLabel);
+            return;
         }
 
         roomKeyRef.current = roomKey;
-
-        // 3) settings는 분리 저장 (roomId에 pin 섞지 않기)
-        // v128: pinRef 업데이트 (비동기 settings보다 확실)
         pinRef.current = pin;
 
+        // 4. Update Settings UI Optimistically
         updateSettings({
             roomKey,
-            roomId: roomKey,        // 내부 식별자는 roomKey로 통일 (권장)
-            roomLabel: label,       // UI 표시용
-            pin                    // 평문 (메모리) - 서버 auth로만 전달
+            roomId: roomKey,
+            roomLabel: isHashKey ? roomKey : rawLabel,
+            pin
         });
 
         // 4) loop prevention 기준도 "roomKey" 기준으로
