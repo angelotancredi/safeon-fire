@@ -219,12 +219,6 @@ const SquadView = ({ rtc }) => {
 
     if (ROOM_LABEL_MAP[key]) return ROOM_LABEL_MAP[key];
 
-    // R_69630F74 같은 형태를 CH-0F74로 표시
-    // (Pusher channel은 보통 'r_' 소문자로 생성되므로 대소문자 모두 대응)
-    if (/^[rR]_[0-9A-Fa-f]+$/.test(key)) {
-      return `CH-${key.slice(-4).toUpperCase()}`;
-    }
-
     return key; // 그 외는 그대로
   };
 

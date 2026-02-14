@@ -60,16 +60,16 @@ export const WebRTCProvider = ({ children }) => {
 
     // v122: Stable Room Key & Channel Deletion
     const roomKeyRef = useRef(null);
-    const channelIdRef = useRef(null); // v126: Encoded Channel ID for Korean support
+    const channelIdRef = useRef(null);    // v126: Strict Room Key Format (R_XXXXXXXX)
 
     const makeRoomKey = (roomId) => {
-        const s = String(roomId || '');
+        const s = String(roomId || '').trim().toLowerCase();
         let h = 2166136261;
         for (let i = 0; i < s.length; i++) {
             h ^= s.charCodeAt(i);
             h = Math.imul(h, 16777619);
         }
-        return `r_${(h >>> 0).toString(16)}`;
+        return `R_${(h >>> 0).toString(16).padStart(8, '0').toUpperCase()}`;
     };
 
     const pusherRef = useRef(null);
@@ -393,26 +393,43 @@ export const WebRTCProvider = ({ children }) => {
     const startSystem = useCallback(async (manualRoomId = null, password = null, leaderStatus = false) => {
         if (!manualRoomId) return;
 
-        // v110: Generate full ID with PIN separator
-        const finalRoomId = password ? `${manualRoomId}@@${password}` : manualRoomId;
-        const targetRoomId = finalRoomId;
-
         // Loop prevention: block only accidental double-click, but DO NOT block retries.
         // retryCountRef.current > 0 means we're in a retry cycle.
         if (
             status === 'STARTING' &&
-            lastJoinedRoomRef.current === targetRoomId &&
+            lastJoinedRoomRef.current === manualRoomId && // Use manualRoomId for loop prevention check
             (retryCountRef.current === 0)
         ) return;
 
-        lastJoinedRoomRef.current = targetRoomId;
+        lastJoinedRoomRef.current = manualRoomId; // Store manualRoomId for loop prevention
 
-        // v122: Generate stable room key
-        const roomKey = makeRoomKey(targetRoomId);
-        roomKeyRef.current = roomKey;
+        const raw = String(manualRoomId || '').trim();
+        const [labelPart, secondPart] = raw.split('@@');
 
-        // v109/v110: Update UI state immediately
-        updateSettings({ roomId: targetRoomId, roomKey });
+        const toRoomKey = (v) => String(v || '').trim().toUpperCase();
+        const isRoomKey = (v) => /^R_[0-9A-F]{8}$/.test(toRoomKey(v));
+
+        if (isRoomKey(raw)) {
+            // ✅ (A) room.id가 R_XXXX로 내려온 방 = "기존 채널" → 그대로 조인
+            const roomKey = toRoomKey(raw);
+            roomKeyRef.current = roomKey;
+            updateSettings({ roomId: roomKey, roomKey });
+        } else if (isRoomKey(secondPart)) {
+            // ✅ (B) "동상@@R_XXXX" 같은 경우
+            const roomKey = toRoomKey(secondPart);
+            roomKeyRef.current = roomKey;
+            updateSettings({ roomId: String(labelPart || '').trim() || '무전', roomKey });
+        } else {
+            // ✅ (C) "동상" 또는 "동상@@1234" = 라벨(+핀) 기반 방 → 키 생성 후 조인
+            const label = String(labelPart || '').trim() || '무전';
+            const pin = secondPart ? String(secondPart).trim() : '';
+            const seed = pin ? `${label}@@${pin}` : label;
+
+            const roomKey = makeRoomKey(seed);
+            roomKeyRef.current = roomKey;
+
+            updateSettings({ roomId: pin ? `${label}@@${pin}` : label, roomKey });
+        }
 
         const displayRoom = manualRoomId; // Show clean name in logs
         addLog(`JOIN: ${displayRoom.toUpperCase()} Sequence Started`);
