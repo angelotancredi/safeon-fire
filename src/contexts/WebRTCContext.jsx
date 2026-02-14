@@ -425,23 +425,19 @@ export const WebRTCProvider = ({ children }) => {
 
     // v132: Refactored startSystem - Field Recovery Guide
     // Strict Label-to-Key conversion to match Backend Logic
-    const startSystem = useCallback(async (inputRoomLabel = null, inputPin = null) => {
-        if (!inputRoomLabel) return;
+    const startSystem = useCallback(async (manualRoomId = null, inputPin = null) => {
+        if (!manualRoomId) return;
 
-        // 1. Label/Pin Parsing
-        // v134: State Clean - Clear old label immediately to prevent ghosting
-        updateSettings({ roomLabel: null });
-
-        const label = String(inputRoomLabel || '').trim() || '무전'; // v133: Fixed 'label is not defined' & added fallback
+        // 1. Label/RoomKey Generation (Moved to top to fix 'label is not defined' error)
+        // v133: Split logic added as per user request
+        const label = String(manualRoomId || '').split('@@')[0] || '무전';
         const pin = (inputPin || pinRef.current || '').trim();
 
         // 2. Room Key Generation (FNV-1a 32bit Hash - BACKEND MATCHING)
-        // If input looks like R_XXXXXXXX, use it. Otherwise hash the label.
         let roomKey = label;
         const isHashKey = /^R_[0-9A-F]{8}$/i.test(label);
 
         if (!isHashKey) {
-            // Hash Logic: Mirrors api/rooms-upsert.js
             let h = 2166136261;
             const s = label.toLowerCase();
             for (let i = 0; i < s.length; i++) {
@@ -451,8 +447,11 @@ export const WebRTCProvider = ({ children }) => {
             roomKey = `R_${(h >>> 0).toString(16).toUpperCase()}`;
         }
 
+        addLog(`JOIN: ${label} (${roomKey}) Sequence Started`);
+
         // 3. Race Condition Fix: Update Refs IMMEDIATELY logic
-        if (roomKey === roomKeyRef.current && isConnected) {
+        // v134: Fix 'isConnected' reference to 'status === "CONNECTED"'
+        if (roomKey === roomKeyRef.current && status === 'CONNECTED') {
             console.log("[WebRTC] Already in room:", label);
             return;
         }
@@ -468,7 +467,10 @@ export const WebRTCProvider = ({ children }) => {
             pin
         });
 
-        // 4) loop prevention 기준도 "roomKey" 기준으로
+        // v134: State Clean - Clear old label immediately to prevent ghosting
+        // updateSettings({ roomLabel: null }); // Moved or handled above
+
+        // 5) loop prevention 기준도 "roomKey" 기준으로
         if (
             status === 'STARTING' &&
             lastJoinedRoomRef.current === roomKey &&
@@ -476,9 +478,6 @@ export const WebRTCProvider = ({ children }) => {
         ) return;
 
         lastJoinedRoomRef.current = roomKey;
-
-        const displayRoom = label; // 로그/UI는 label만
-        addLog(`JOIN: ${displayRoom} (${roomKey}) Sequence Started`);
 
         await cleanup();
         setPeers([]);
@@ -494,7 +493,7 @@ export const WebRTCProvider = ({ children }) => {
         timeoutRef.current = setTimeout(() => {
             setStatus(prev => {
                 if (prev === 'STARTING') {
-                    addLog(`[경고] 접속 시간 초과: ${displayRoom}`);
+                    addLog(`[경고] 접속 시간 초과: ${label}`);
                     setError('접속 시간이 초과되었습니다. 네트워크를 확인하세요.');
                     cleanup();
                     lastJoinedRoomRef.current = null;
@@ -647,7 +646,7 @@ export const WebRTCProvider = ({ children }) => {
                     if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
                     retryTimeoutRef.current = setTimeout(() => {
                         // Re-use precise label and pin from closure
-                        startSystem(label, pin || null, leaderStatus);
+                        startSystem(label, pin || null);
                     }, 3000); // 3s interval
                 } else {
                     addLog(`[System] CONNECTION FAILED after 3 attempts.`);
