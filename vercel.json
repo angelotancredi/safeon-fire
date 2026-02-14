@@ -9,6 +9,10 @@
             "destination": "/api/pusher/rooms.js"
         },
         {
+            "source": "/api/rooms-upsert",
+            "destination": "/api/rooms-upsert.js"
+        },
+        {
             "source": "/api/db-test",
             "destination": "/api/db-test.js"
         },
