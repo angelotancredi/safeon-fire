@@ -15,7 +15,7 @@ const RadioButton = ({ rtc }) => {
 
     // Helper functions for display
     // Helper functions for display
-    const roomLabel = (settings?.roomId || '').split('@@')[0] || 'radio';
+    const roomLabel = (settings?.roomLabel || (settings?.roomId || '').split('@@')[0]) || 'radio';
     const shortId = (id) => (id ? String(id).slice(-4) : '----');
     const callsign = (id) => `${roomLabel}-${shortId(id)}`;
 
