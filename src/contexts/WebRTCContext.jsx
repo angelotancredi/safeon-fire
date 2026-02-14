@@ -16,6 +16,9 @@ const PUSHER_CONFIG = {
     cluster: "ap3"
 };
 
+// v127: Epoch Guard & Cleanup Refs
+const EPOCH_START = 0;
+
 const ICE_SERVERS = [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun.l.google.com:19305' },
@@ -61,6 +64,7 @@ export const WebRTCProvider = ({ children }) => {
     // v122: Stable Room Key & Channel Deletion
     const roomKeyRef = useRef(null);
     const channelIdRef = useRef(null);    // v126: Strict Room Key Format (R_XXXXXXXX)
+    const pinRef = useRef(""); // v128: Immediate PIN access for auth
 
     // v127: Epoch Guard & Cleanup Refs
     const channelNameRef = useRef(null);
@@ -161,11 +165,12 @@ export const WebRTCProvider = ({ children }) => {
         if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
 
         // ✅ 리더/세션 상태 즉시 리셋 (가장 중요)
+        // ✅ 리더/세션 상태 즉시 리셋 (가장 중요)
         setIsLeader(false);
-        if (leaderIdRef?.current !== undefined) leaderIdRef.current = null;
+        if (leaderIdRef.current) leaderIdRef.current = null;
 
         // ✅ epoch 증가: 이후 늦게 오는 이벤트 무시
-        if (epochRef?.current !== undefined) epochRef.current += 1;
+        if (epochRef.current !== undefined) epochRef.current += 1;
 
         // v94: Force close AudioContext to release hardware resources
         if (audioContextRef.current) {
@@ -184,7 +189,7 @@ export const WebRTCProvider = ({ children }) => {
             if (channelRef.current) {
                 channelRef.current.unbind_all();
             }
-            if (pusherRef.current && channelNameRef?.current) {
+            if (pusherRef.current && channelNameRef.current) {
                 pusherRef.current.unsubscribe(channelNameRef.current);
             }
         } catch (e) {
@@ -450,6 +455,9 @@ export const WebRTCProvider = ({ children }) => {
         roomKeyRef.current = roomKey;
 
         // 3) settings는 분리 저장 (roomId에 pin 섞지 않기)
+        // v128: pinRef 업데이트 (비동기 settings보다 확실)
+        pinRef.current = pin;
+
         updateSettings({
             roomKey,
             roomId: roomKey,        // 내부 식별자는 roomKey로 통일 (권장)
@@ -556,41 +564,52 @@ export const WebRTCProvider = ({ children }) => {
             stream.getAudioTracks().forEach(t => t.enabled = false);
 
             addLog('STEP 4: HANDSHAKE...'); // v108: Changed from INITIALIZING
+
+            // ✅ 방 문서 보장 (DB에 없으면 생성 / 있으면 갱신) -> v128: pinRef 사용
+            try {
+                await fetch("/api/rooms-upsert", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        label: settings.roomLabel || label,
+                        pin: (pinRef.current || "").trim(), // 핀 입력이 있으면 같이
+                    }),
+                });
+            } catch (e) {
+                console.warn("[Room-Upsert] Skipped or Failed:", e);
+            }
+
             const pusher = new Pusher(PUSHER_CONFIG.key, {
                 cluster: PUSHER_CONFIG.cluster,
                 enabledTransports: ["ws", "wss"],
-                // ✅ custom authorizer: channel_name + socket_id + roomKey + pin 전송
-                authorizer: (channel) => {
-                    return {
-                        authorize: async (socketId, callback) => {
-                            try {
-                                const res = await fetch("/api/pusher-auth", {
-                                    method: "POST",
-                                    headers: { "Content-Type": "application/json" },
-                                    body: JSON.stringify({
-                                        socket_id: socketId,
-                                        channel_name: channel.name,
-                                        user_id: myIdRef.current,
-                                        roomKey: roomKeyRef.current,          // ✅ 현재 조인 대상
-                                        pin: (settings.pin || "").trim(),     // ✅ 현재 입력된 핀
-                                        roomLabel: settings.roomLabel || ""
-                                    })
-                                });
+                // ✅ subscribe마다 최신 roomKey/pin을 실어보내기 위해 custom authorizer 사용
+                authorizer: (channel) => ({
+                    authorize: async (socketId, callback) => {
+                        try {
+                            const res = await fetch("/api/pusher-auth", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                    socket_id: socketId,
+                                    channel_name: channel.name,
+                                    user_id: myIdRef.current,
+                                    pin: (pinRef.current || "").trim(),     // ✅ PIN 전달 (핵심: pinRef 사용)
+                                }),
+                            });
 
-                                if (!res.ok) {
-                                    const msg = await res.text().catch(() => "");
-                                    callback(new Error(msg || `Auth failed: ${res.status}`), null);
-                                    return;
-                                }
-
-                                const data = await res.json();
-                                callback(null, data);
-                            } catch (err) {
-                                callback(err, null);
+                            if (!res.ok) {
+                                const msg = await res.text().catch(() => "");
+                                callback(new Error(msg || `Auth failed: ${res.status}`), null);
+                                return;
                             }
+
+                            const data = await res.json();
+                            callback(null, data);
+                        } catch (err) {
+                            callback(err, null);
                         }
-                    };
-                }
+                    },
+                }),
             });
             pusherRef.current = pusher;
 
@@ -638,7 +657,7 @@ export const WebRTCProvider = ({ children }) => {
             channelNameRef.current = channelName; // ✅ Set for cleanup
 
             // ✅ Epoch Guard: Capture current epoch
-            const epoch = epochRef.current;
+            const epoch = ++epochRef.current;
 
             // ✅ 리더 재계산 (members snapshot 기반)
             const recalcLeader = (membersSnapshot = null) => {
