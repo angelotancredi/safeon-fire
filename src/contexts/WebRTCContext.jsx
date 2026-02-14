@@ -429,18 +429,18 @@ export const WebRTCProvider = ({ children }) => {
         if (!inputRoomLabel) return;
 
         // 1. Label/Pin Parsing
-        const rawLabel = String(inputRoomLabel || '').trim();
+        const label = String(inputRoomLabel || '').trim() || '무전'; // v133: Fixed 'label is not defined' & added fallback
         const pin = (inputPin || pinRef.current || '').trim();
 
         // 2. Room Key Generation (FNV-1a 32bit Hash - BACKEND MATCHING)
         // If input looks like R_XXXXXXXX, use it. Otherwise hash the label.
-        let roomKey = rawLabel;
-        const isHashKey = /^R_[0-9A-F]{8}$/i.test(rawLabel);
+        let roomKey = label;
+        const isHashKey = /^R_[0-9A-F]{8}$/i.test(label);
 
         if (!isHashKey) {
             // Hash Logic: Mirrors api/rooms-upsert.js
             let h = 2166136261;
-            const s = rawLabel.toLowerCase();
+            const s = label.toLowerCase();
             for (let i = 0; i < s.length; i++) {
                 h ^= s.charCodeAt(i);
                 h = Math.imul(h, 16777619);
@@ -450,7 +450,7 @@ export const WebRTCProvider = ({ children }) => {
 
         // 3. Race Condition Fix: Update Refs IMMEDIATELY logic
         if (roomKey === roomKeyRef.current && isConnected) {
-            console.log("[WebRTC] Already in room:", rawLabel);
+            console.log("[WebRTC] Already in room:", label);
             return;
         }
 
@@ -461,7 +461,7 @@ export const WebRTCProvider = ({ children }) => {
         updateSettings({
             roomKey,
             roomId: roomKey,
-            roomLabel: isHashKey ? roomKey : rawLabel,
+            roomLabel: isHashKey ? roomKey : label,
             pin
         });
 
