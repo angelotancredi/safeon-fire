@@ -265,8 +265,8 @@ const SquadView = ({ rtc }) => {
                   <div
                     key={room.id}
                     className={`bg-white border rounded-[32px] overflow-hidden transition-all shadow-sm ${isActive
-                        ? "border-tactical-accent/40 ring-1 ring-tactical-accent/5"
-                        : "border-tactical-border"
+                      ? "border-tactical-accent/40 ring-1 ring-tactical-accent/5"
+                      : "border-tactical-border"
                       }`}
                   >
                     {/* Channel Header */}
