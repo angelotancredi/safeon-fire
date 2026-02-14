@@ -393,17 +393,21 @@ export const WebRTCProvider = ({ children }) => {
     const startSystem = useCallback(async (manualRoomId = null, password = null, leaderStatus = false) => {
         if (!manualRoomId) return;
 
+        // v126: Strict Room Logic - targetRoomId is the full identifier
+        const finalRoomId = password ? `${manualRoomId}@@${password}` : manualRoomId;
+        const targetRoomId = finalRoomId; // Restore targetRoomId for consistent usage
+
         // Loop prevention: block only accidental double-click, but DO NOT block retries.
         // retryCountRef.current > 0 means we're in a retry cycle.
         if (
             status === 'STARTING' &&
-            lastJoinedRoomRef.current === manualRoomId && // Use manualRoomId for loop prevention check
+            lastJoinedRoomRef.current === targetRoomId && // Use manualRoomId for loop prevention check
             (retryCountRef.current === 0)
         ) return;
 
-        lastJoinedRoomRef.current = manualRoomId; // Store manualRoomId for loop prevention
+        lastJoinedRoomRef.current = targetRoomId; // Store manualRoomId for loop prevention
 
-        const raw = String(manualRoomId || '').trim();
+        const raw = String(targetRoomId || '').trim();
         const [labelPart, secondPart] = raw.split('@@');
 
         const toRoomKey = (v) => String(v || '').trim().toUpperCase();
@@ -431,7 +435,7 @@ export const WebRTCProvider = ({ children }) => {
             updateSettings({ roomId: pin ? `${label}@@${pin}` : label, roomKey });
         }
 
-        const displayRoom = manualRoomId; // Show clean name in logs
+        const displayRoom = targetRoomId; // Show clean name in logs
         addLog(`JOIN: ${displayRoom.toUpperCase()} Sequence Started`);
 
         await cleanup();
