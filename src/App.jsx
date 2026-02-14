@@ -206,190 +206,187 @@ const NavButton = ({ icon, label, active, onClick }) => (
 const SquadView = ({ rtc }) => {
   const { peers, isConnected, peerId, talkingPeers, availableRooms, settings } = rtc;
 
-  // ✅ roomKey 정규화: presence- 제거 + 키를 소문자로 통일(대소문자 불일치 방지)
-  const normKey = (v) => {
-    const s = String(v || "");
-    // ✅ 보기 좋은 채널명 규칙(서버/기기 상관 없이 동일)
-    const prettyRoomName = (roomId) => {
-      const raw = String(roomId || "");
-      const [head] = raw.split("@@"); // 기존 로직 유지
-      const key = head || raw || "radio";
+  // ✅ 보기 좋은 채널명 규칙(서버/기기 상관 없이 동일)
+  const prettyRoomName = (roomId) => {
+    const raw = String(roomId || "");
+    const [head] = raw.split("@@"); // 기존 로직 유지
+    const key = head || raw || "radio";
 
-      // R_69630F74 같은 형태를 CH-0F74로 표시
-      // (Pusher channel은 보통 'r_' 소문자로 생성되므로 대소문자 모두 대응)
-      if (/^[rR]_[0-9A-Fa-f]+$/.test(key)) {
-        return `CH-${key.slice(-4).toUpperCase()}`;
-      }
-
-      return key; // 그 외는 그대로
-    };
-
-    // callsign도 동일 규칙 적용
-    const roomLabel = prettyRoomName(settings?.roomId);
-    const shortId = (id) => (id ? String(id).slice(-4) : "----");
-    const callsign = (id) => `${roomLabel}-${shortId(id)}`;
-
-    const effectiveRooms = availableRooms.map((r) => {
-      if (r.id === settings?.roomId && isConnected) {
-        return { ...r, userCount: Math.max(r.userCount, peers.length + 1) };
-      }
-      return r;
-    });
-
-    if (isConnected && settings?.roomId && !effectiveRooms.find((r) => r.id === settings.roomId)) {
-      effectiveRooms.unshift({
-        id: settings.roomId,
-        userCount: peers.length + 1
-      });
+    // R_69630F74 같은 형태를 CH-0F74로 표시
+    // (Pusher channel은 보통 'r_' 소문자로 생성되므로 대소문자 모두 대응)
+    if (/^[rR]_[0-9A-Fa-f]+$/.test(key)) {
+      return `CH-${key.slice(-4).toUpperCase()}`;
     }
 
-    return (
-      <div className="flex-1 flex flex-col w-full min-h-0 bg-tactical-bg p-4 overflow-y-auto">
-        <div className="max-w-md mx-auto w-full space-y-6">
-          <div className="flex items-center justify-between mb-4 px-2">
-            <h2 className="text-[14px] font-black tracking-[0.2em] text-tactical-muted uppercase flex items-center">
-              <Users className="w-4 h-4 mr-2" /> Sector Status
-            </h2>
-            <span className="text-[10px] font-mono font-bold text-tactical-muted opacity-80">
-              {effectiveRooms.length} Active Channels
-            </span>
-          </div>
+    return key; // 그 외는 그대로
+  };
 
-          <div className="space-y-4">
-            {effectiveRooms.length > 0 ? (
-              effectiveRooms.map((room) => {
-                const roomName = prettyRoomName(room.id);
-                const isActive = room.id === settings?.roomId && isConnected;
+  // callsign도 동일 규칙 적용
+  const roomLabel = prettyRoomName(settings?.roomId);
+  const shortId = (id) => (id ? String(id).slice(-4) : "----");
+  const callsign = (id) => `${roomLabel}-${shortId(id)}`;
 
-                return (
-                  <div
-                    key={room.id}
-                    className={`bg-white border rounded-[32px] overflow-hidden transition-all shadow-sm ${isActive
-                      ? "border-tactical-accent/40 ring-1 ring-tactical-accent/5"
-                      : "border-tactical-border"
-                      }`}
-                  >
-                    {/* Channel Header */}
-                    <div className={`p-4 flex items-center justify-between ${isActive ? "bg-tactical-accent/5" : ""}`}>
-                      <div className="flex items-center space-x-3">
-                        <div
-                          className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isActive ? "bg-tactical-accent text-white" : "bg-tactical-surface text-tactical-muted"
-                            }`}
-                        >
-                          <Radio className="w-5 h-5" />
+  const effectiveRooms = availableRooms.map((r) => {
+    if (r.id === settings?.roomId && isConnected) {
+      return { ...r, userCount: Math.max(r.userCount, peers.length + 1) };
+    }
+    return r;
+  });
+
+  if (isConnected && settings?.roomId && !effectiveRooms.find((r) => r.id === settings.roomId)) {
+    effectiveRooms.unshift({
+      id: settings.roomId,
+      userCount: peers.length + 1
+    });
+  }
+
+  return (
+    <div className="flex-1 flex flex-col w-full min-h-0 bg-tactical-bg p-4 overflow-y-auto">
+      <div className="max-w-md mx-auto w-full space-y-6">
+        <div className="flex items-center justify-between mb-4 px-2">
+          <h2 className="text-[14px] font-black tracking-[0.2em] text-tactical-muted uppercase flex items-center">
+            <Users className="w-4 h-4 mr-2" /> Sector Status
+          </h2>
+          <span className="text-[10px] font-mono font-bold text-tactical-muted opacity-80">
+            {effectiveRooms.length} Active Channels
+          </span>
+        </div>
+
+        <div className="space-y-4">
+          {effectiveRooms.length > 0 ? (
+            effectiveRooms.map((room) => {
+              const roomName = prettyRoomName(room.id);
+              const isActive = room.id === settings?.roomId && isConnected;
+
+              return (
+                <div
+                  key={room.id}
+                  className={`bg-white border rounded-[32px] overflow-hidden transition-all shadow-sm ${isActive
+                    ? "border-tactical-accent/40 ring-1 ring-tactical-accent/5"
+                    : "border-tactical-border"
+                    }`}
+                >
+                  {/* Channel Header */}
+                  <div className={`p-4 flex items-center justify-between ${isActive ? "bg-tactical-accent/5" : ""}`}>
+                    <div className="flex items-center space-x-3">
+                      <div
+                        className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isActive ? "bg-tactical-accent text-white" : "bg-tactical-surface text-tactical-muted"
+                          }`}
+                      >
+                        <Radio className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-[14px] font-black text-tactical-fg uppercase tracking-tight flex items-center">
+                          {roomName}
+                          {isActive && (
+                            <span className="ml-2 px-1.5 py-0.5 bg-tactical-accent text-white text-[8px] rounded uppercase font-black">
+                              Online
+                            </span>
+                          )}
                         </div>
-                        <div>
-                          <div className="text-[14px] font-black text-tactical-fg uppercase tracking-tight flex items-center">
-                            {roomName}
-                            {isActive && (
-                              <span className="ml-2 px-1.5 py-0.5 bg-tactical-accent text-white text-[8px] rounded uppercase font-black">
-                                Online
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[10px] text-tactical-muted font-bold uppercase opacity-60">
-                            Frequency Shared • {room.userCount} Nodes
-                          </div>
+                        <div className="text-[10px] text-tactical-muted font-bold uppercase opacity-60">
+                          Frequency Shared • {room.userCount} Nodes
                         </div>
                       </div>
                     </div>
-
-                    {/* Members List (Only for Active Channel) */}
-                    {isActive && (
-                      <div className="px-4 pb-4 space-y-2">
-                        <div className="pt-2 border-t border-tactical-border/50 space-y-2">
-                          {/* Me */}
-                          <div className="p-3 bg-tactical-surface rounded-2xl flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-2 h-2 rounded-full bg-tactical-accent animate-pulse" />
-                              <span className="text-[12px] font-black text-tactical-fg">
-                                {callsign(peerId)} <span className="opacity-40 text-[10px] ml-1">(YOU)</span>
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-[9px] font-black text-tactical-accent uppercase">MASTER</span>
-                            </div>
-                          </div>
-
-                          {/* Peers */}
-                          {peers.map((peer) => (
-                            <div
-                              key={peer}
-                              className="p-3 bg-white border border-tactical-border rounded-2xl flex items-center justify-between"
-                            >
-                              <div className="flex items-center space-x-3">
-                                <div
-                                  className={`w-2 h-2 rounded-full ${talkingPeers.has(peer) ? "bg-tactical-ok animate-pulse" : "bg-tactical-muted/40"
-                                    }`}
-                                />
-                                <span className="text-[12px] font-bold text-tactical-fg">{callsign(peer)}</span>
-                              </div>
-                              {talkingPeers.has(peer) && (
-                                <span className="text-[8px] font-black text-tactical-ok uppercase">Talking...</span>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
-                );
-              })
-            ) : (
-              <div className="py-20 flex flex-col items-center justify-center opacity-40">
-                <Wifi className="w-10 h-10 mb-4" />
-                <p className="text-[10px] font-black tracking-widest uppercase">No Active Sectors Found</p>
-              </div>
-            )}
-          </div>
+
+                  {/* Members List (Only for Active Channel) */}
+                  {isActive && (
+                    <div className="px-4 pb-4 space-y-2">
+                      <div className="pt-2 border-t border-tactical-border/50 space-y-2">
+                        {/* Me */}
+                        <div className="p-3 bg-tactical-surface rounded-2xl flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-2 h-2 rounded-full bg-tactical-accent animate-pulse" />
+                            <span className="text-[12px] font-black text-tactical-fg">
+                              {callsign(peerId)} <span className="opacity-40 text-[10px] ml-1">(YOU)</span>
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-black text-tactical-accent uppercase">MASTER</span>
+                          </div>
+                        </div>
+
+                        {/* Peers */}
+                        {peers.map((peer) => (
+                          <div
+                            key={peer}
+                            className="p-3 bg-white border border-tactical-border rounded-2xl flex items-center justify-between"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <div
+                                className={`w-2 h-2 rounded-full ${talkingPeers.has(peer) ? "bg-tactical-ok animate-pulse" : "bg-tactical-muted/40"
+                                  }`}
+                              />
+                              <span className="text-[12px] font-bold text-tactical-fg">{callsign(peer)}</span>
+                            </div>
+                            {talkingPeers.has(peer) && (
+                              <span className="text-[8px] font-black text-tactical-ok uppercase">Talking...</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          ) : (
+            <div className="py-20 flex flex-col items-center justify-center opacity-40">
+              <Wifi className="w-10 h-10 mb-4" />
+              <p className="text-[10px] font-black tracking-widest uppercase">No Active Sectors Found</p>
+            </div>
+          )}
         </div>
       </div>
-    );
-  };
+    </div>
+  );
+};
 
-  const DebugPanel = ({ setShowDebugPanel }) => {
-    const { logs, startSystem, peerId, isConnected, peerStatus } = useWebRTC();
+const DebugPanel = ({ setShowDebugPanel }) => {
+  const { logs, startSystem, peerId, isConnected, peerStatus } = useWebRTC();
 
-    return (
-      <div className="fixed top-[88px] left-4 right-4 bg-white border border-tactical-border p-4 rounded-3xl z-[9999] font-mono text-[10px] text-tactical-muted space-y-3 shadow-[0_18px_45px_rgba(0,0,0,0.18)] flex flex-col max-h-[70vh]">
-        <div className="text-tactical-fg font-black mb-1 flex justify-between items-center px-1">
-          <span className="tracking-widest flex items-center">
-            <Bug className="w-3.5 h-3.5 mr-2 text-tactical-accent" /> SYSTEM DIAGNOSTICS
-          </span>
-          <button
-            onClick={() => setShowDebugPanel(false)}
-            className="bg-tactical-surface text-tactical-fg px-3 py-1.5 rounded-xl border border-tactical-border font-black active:scale-[0.96] focus:outline-none"
-          >
-            CLOSE
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 p-3 bg-tactical-surface rounded-2xl border border-tactical-border">
-          <div>PEER ID: <span className="text-tactical-fg font-black">{peerId?.slice(-6) || '---'}</span></div>
-          <div>LINK: <span className={`font-black ${isConnected ? 'text-tactical-ok' : 'text-tactical-danger'}`}>{peerStatus}</span></div>
-          <div className="col-span-2 text-[9px] opacity-60">BUILD: {BUILD_ID}</div>
-        </div>
-
+  return (
+    <div className="fixed top-[88px] left-4 right-4 bg-white border border-tactical-border p-4 rounded-3xl z-[9999] font-mono text-[10px] text-tactical-muted space-y-3 shadow-[0_18px_45px_rgba(0,0,0,0.18)] flex flex-col max-h-[70vh]">
+      <div className="text-tactical-fg font-black mb-1 flex justify-between items-center px-1">
+        <span className="tracking-widest flex items-center">
+          <Bug className="w-3.5 h-3.5 mr-2 text-tactical-accent" /> SYSTEM DIAGNOSTICS
+        </span>
         <button
-          onClick={startSystem}
-          className="w-full py-3 bg-tactical-fg text-white rounded-2xl font-black text-[11px] tracking-widest flex items-center justify-center space-x-2 active:scale-[0.97] transition-all"
+          onClick={() => setShowDebugPanel(false)}
+          className="bg-tactical-surface text-tactical-fg px-3 py-1.5 rounded-xl border border-tactical-border font-black active:scale-[0.96] focus:outline-none"
         >
-          <RotateCw className="w-3.5 h-3.5" />
-          <span>FORCE RE-SYNC ENGINE</span>
+          CLOSE
         </button>
+      </div>
 
-        <div className="bg-black rounded-2xl overflow-hidden flex flex-col flex-1 min-h-0 border border-gray-800">
-          <div className="p-2.5 bg-gray-900 border-b border-gray-800 text-[8px] font-black tracking-widest text-tactical-muted uppercase">Realtime Engine Logs</div>
-          <div className="p-3 font-mono text-[9px] space-y-1.5 overflow-y-auto text-green-400 flex-1 custom-scrollbar">
-            {logs.length === 0 ? '> Initializing diagnostics...' : logs.map((log, i) => (
-              <div key={i} className="leading-tight border-l border-green-900/40 pl-2 py-0.5 break-all">
-                {log}
-              </div>
-            ))}
-          </div>
+      <div className="grid grid-cols-2 gap-2 p-3 bg-tactical-surface rounded-2xl border border-tactical-border">
+        <div>PEER ID: <span className="text-tactical-fg font-black">{peerId?.slice(-6) || '---'}</span></div>
+        <div>LINK: <span className={`font-black ${isConnected ? 'text-tactical-ok' : 'text-tactical-danger'}`}>{peerStatus}</span></div>
+        <div className="col-span-2 text-[9px] opacity-60">BUILD: {BUILD_ID}</div>
+      </div>
+
+      <button
+        onClick={startSystem}
+        className="w-full py-3 bg-tactical-fg text-white rounded-2xl font-black text-[11px] tracking-widest flex items-center justify-center space-x-2 active:scale-[0.97] transition-all"
+      >
+        <RotateCw className="w-3.5 h-3.5" />
+        <span>FORCE RE-SYNC ENGINE</span>
+      </button>
+
+      <div className="bg-black rounded-2xl overflow-hidden flex flex-col flex-1 min-h-0 border border-gray-800">
+        <div className="p-2.5 bg-gray-900 border-b border-gray-800 text-[8px] font-black tracking-widest text-tactical-muted uppercase">Realtime Engine Logs</div>
+        <div className="p-3 font-mono text-[9px] space-y-1.5 overflow-y-auto text-green-400 flex-1 custom-scrollbar">
+          {logs.length === 0 ? '> Initializing diagnostics...' : logs.map((log, i) => (
+            <div key={i} className="leading-tight border-l border-green-900/40 pl-2 py-0.5 break-all">
+              {log}
+            </div>
+          ))}
         </div>
       </div>
-    );
-  };
+    </div>
+  );
+};
 
-  export default App;
+export default App;
