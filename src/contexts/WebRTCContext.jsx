@@ -586,27 +586,50 @@ export const WebRTCProvider = ({ children }) => {
                 authorizer: (channel) => ({
                     authorize: async (socketId, callback) => {
                         try {
+                            const payload = {
+                                socket_id: socketId,
+                                channel_name: channel.name,
+                                user_id: myIdRef.current,
+                                pin: (pinRef.current || settings.pin || "").trim(),
+                                // roomKey/roomLabel은 보내도 되고 안 보내도 됨 (서버 검증은 channel_name 기준)
+                                roomKey: roomKeyRef.current,
+                                roomLabel: settings.roomLabel || "",
+                            };
+
                             const res = await fetch("/api/pusher-auth", {
                                 method: "POST",
                                 headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                    socket_id: socketId,
-                                    channel_name: channel.name,
-                                    user_id: myIdRef.current,
-                                    pin: (pinRef.current || "").trim(),     // ✅ PIN 전달 (핵심: pinRef 사용)
-                                }),
+                                body: JSON.stringify(payload),
                             });
 
+                            const contentType = res.headers.get("content-type") || "";
+                            const bodyText = await res.text().catch(() => "");
+
                             if (!res.ok) {
-                                const msg = await res.text().catch(() => "");
-                                callback(new Error(msg || `Auth failed: ${res.status}`), null);
+                                const errMsg = `[AUTH_FAIL] ${res.status} ${res.statusText} :: ${bodyText.slice(0, 200)}`;
+                                console.error(errMsg, { payload, channel: channel.name });
+                                addLog(errMsg);                    // ✅ 화면 로그에 찍기
+                                callback(new Error(errMsg), null); // ✅ 반드시 문자열 메시지
                                 return;
                             }
 
-                            const data = await res.json();
+                            // 성공 응답은 JSON이어야 함
+                            let data;
+                            try {
+                                data = contentType.includes("application/json") ? JSON.parse(bodyText) : JSON.parse(bodyText);
+                            } catch {
+                                const errMsg = `[AUTH_BAD_JSON] ${bodyText.slice(0, 200)}`;
+                                addLog(errMsg);
+                                callback(new Error(errMsg), null);
+                                return;
+                            }
+
                             callback(null, data);
-                        } catch (err) {
-                            callback(err, null);
+                        } catch (e) {
+                            const errMsg = `[AUTH_CRASH] ${e?.message || String(e)}`;
+                            console.error(errMsg, e);
+                            addLog(errMsg);
+                            callback(new Error(errMsg), null);
                         }
                     },
                 }),
