@@ -62,6 +62,11 @@ export const WebRTCProvider = ({ children }) => {
     const roomKeyRef = useRef(null);
     const channelIdRef = useRef(null);    // v126: Strict Room Key Format (R_XXXXXXXX)
 
+    // v127: Epoch Guard & Cleanup Refs
+    const channelNameRef = useRef(null);
+    const leaderIdRef = useRef(null);
+    const epochRef = useRef(0);
+
     const makeRoomKey = (roomId) => {
         const s = String(roomId || '').trim().toLowerCase();
         let h = 2166136261;
@@ -155,10 +160,17 @@ export const WebRTCProvider = ({ children }) => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
 
+        // ✅ 리더/세션 상태 즉시 리셋 (가장 중요)
+        setIsLeader(false);
+        if (leaderIdRef?.current !== undefined) leaderIdRef.current = null;
+
+        // ✅ epoch 증가: 이후 늦게 오는 이벤트 무시
+        if (epochRef?.current !== undefined) epochRef.current += 1;
+
         // v94: Force close AudioContext to release hardware resources
         if (audioContextRef.current) {
             try {
-                if (audioContextRef.current.state !== 'closed') {
+                if (audioContextRef.current.state !== "closed") {
                     await audioContextRef.current.close();
                 }
             } catch (e) {
@@ -167,28 +179,45 @@ export const WebRTCProvider = ({ children }) => {
             audioContextRef.current = null;
         }
 
-        if (channelRef.current) {
-            channelRef.current.unbind_all();
-            channelRef.current.unsubscribe();
+        // ✅ Pusher cleanup (채널명 기반으로 unsubscribe)
+        try {
+            if (channelRef.current) {
+                channelRef.current.unbind_all();
+            }
+            if (pusherRef.current && channelNameRef?.current) {
+                pusherRef.current.unsubscribe(channelNameRef.current);
+            }
+        } catch (e) {
+            console.warn("[Pusher] Unsubscribe warning:", e);
+        } finally {
+            channelRef.current = null;
+            if (channelNameRef) channelNameRef.current = null;
         }
-        if (pusherRef.current) pusherRef.current.disconnect();
 
-        Object.keys(connectionsRef.current).forEach(id => {
-            connectionsRef.current[id].close();
-            delete connectionsRef.current[id];
+        if (pusherRef.current) {
+            try { pusherRef.current.disconnect(); } catch { }
+            pusherRef.current = null;
+        }
+
+        Object.keys(connectionsRef.current).forEach((id) => {
+            if (connectionsRef.current[id]) {
+                connectionsRef.current[id].close();
+                delete connectionsRef.current[id];
+            }
         });
 
-        Object.values(remoteAudiosRef.current).forEach(a => {
+        Object.values(remoteAudiosRef.current).forEach((a) => {
             a.pause();
             a.srcObject = null;
         });
         remoteAudiosRef.current = {};
 
         if (localStreamRef.current) {
-            localStreamRef.current.getTracks().forEach(t => t.stop());
+            localStreamRef.current.getTracks().forEach((t) => t.stop());
             localStreamRef.current = null;
             setLocalStream(null);
         }
+
         analyserRef.current = null;
         localGainNodeRef.current = null;
         setIsTransmitting(false);
@@ -393,50 +422,52 @@ export const WebRTCProvider = ({ children }) => {
     const startSystem = useCallback(async (manualRoomId = null, password = null, leaderStatus = false) => {
         if (!manualRoomId) return;
 
-        // v126: Strict Room Logic - targetRoomId is the full identifier
-        const finalRoomId = password ? `${manualRoomId}@@${password}` : manualRoomId;
-        const targetRoomId = finalRoomId; // Restore targetRoomId for consistent usage
+        // 1) 입력 파싱
+        const raw = String(manualRoomId || '').trim();
+        const [labelPartRaw, maybeSecond] = raw.split('@@');
+        const label = String(labelPartRaw || '').trim() || '무전';
 
-        // Loop prevention: block only accidental double-click, but DO NOT block retries.
-        // retryCountRef.current > 0 means we're in a retry cycle.
-        if (
-            status === 'STARTING' &&
-            lastJoinedRoomRef.current === targetRoomId && // Use manualRoomId for loop prevention check
-            (retryCountRef.current === 0)
-        ) return;
-
-        lastJoinedRoomRef.current = targetRoomId; // Store manualRoomId for loop prevention
-
-        const raw = String(targetRoomId || '').trim();
-        const [labelPart, secondPart] = raw.split('@@');
+        // password 인자를 우선, 없으면 "label@@pin" 형태에서 pin 추출
+        const pin = (password ?? (maybeSecond && !/^R_[0-9A-F]{8}$/i.test(String(maybeSecond).trim()) ? String(maybeSecond).trim() : '') ?? '').trim();
 
         const toRoomKey = (v) => String(v || '').trim().toUpperCase();
         const isRoomKey = (v) => /^R_[0-9A-F]{8}$/.test(toRoomKey(v));
 
+        // 2) roomKey 결정 (절대 pin 섞지 않기)
+        let roomKey;
+
         if (isRoomKey(raw)) {
-            // ✅ (A) room.id가 R_XXXX로 내려온 방 = "기존 채널" → 그대로 조인
-            const roomKey = toRoomKey(raw);
-            roomKeyRef.current = roomKey;
-            updateSettings({ roomId: roomKey, roomKey });
-        } else if (isRoomKey(secondPart)) {
-            // ✅ (B) "동상@@R_XXXX" 같은 경우
-            const roomKey = toRoomKey(secondPart);
-            roomKeyRef.current = roomKey;
-            updateSettings({ roomId: String(labelPart || '').trim() || '무전', roomKey });
+            // 사용자가 이미 roomKey로 들어온 경우
+            roomKey = toRoomKey(raw);
+        } else if (isRoomKey(maybeSecond)) {
+            // "동상@@R_XXXX" 형태
+            roomKey = toRoomKey(maybeSecond);
         } else {
-            // ✅ (C) "동상" 또는 "동상@@1234" = 라벨(+핀) 기반 방 → 키 생성 후 조인
-            const label = String(labelPart || '').trim() || '무전';
-            const pin = secondPart ? String(secondPart).trim() : '';
-            const seed = pin ? `${label}@@${pin}` : label;
-
-            const roomKey = makeRoomKey(seed);
-            roomKeyRef.current = roomKey;
-
-            updateSettings({ roomId: pin ? `${label}@@${pin}` : label, roomKey });
+            // 라벨 기반 (핵심: label만으로 키 생성)
+            roomKey = makeRoomKey(label);
         }
 
-        const displayRoom = targetRoomId; // Show clean name in logs
-        addLog(`JOIN: ${displayRoom.toUpperCase()} Sequence Started`);
+        roomKeyRef.current = roomKey;
+
+        // 3) settings는 분리 저장 (roomId에 pin 섞지 않기)
+        updateSettings({
+            roomKey,
+            roomId: roomKey,        // 내부 식별자는 roomKey로 통일 (권장)
+            roomLabel: label,       // UI 표시용
+            pin                    // 평문 (메모리) - 서버 auth로만 전달
+        });
+
+        // 4) loop prevention 기준도 "roomKey" 기준으로
+        if (
+            status === 'STARTING' &&
+            lastJoinedRoomRef.current === roomKey &&
+            (retryCountRef.current === 0)
+        ) return;
+
+        lastJoinedRoomRef.current = roomKey;
+
+        const displayRoom = label; // 로그/UI는 label만
+        addLog(`JOIN: ${displayRoom} (${roomKey}) Sequence Started`);
 
         await cleanup();
         setPeers([]);
@@ -464,9 +495,9 @@ export const WebRTCProvider = ({ children }) => {
 
         // v111: Immediate Lobby Update - ensure this room is visible right away
         setAvailableRooms(prev => {
-            const exists = prev.find(r => r.id === targetRoomId);
+            const exists = prev.find(r => r.id === roomKey);
             if (!exists) {
-                return [{ id: targetRoomId, label: targetRoomId, userCount: 1 }, ...prev]; // Ensure local optimistic update has label
+                return [{ id: roomKey, label, userCount: 1 }, ...prev];
             }
             return prev;
         });
@@ -527,13 +558,38 @@ export const WebRTCProvider = ({ children }) => {
             addLog('STEP 4: HANDSHAKE...'); // v108: Changed from INITIALIZING
             const pusher = new Pusher(PUSHER_CONFIG.key, {
                 cluster: PUSHER_CONFIG.cluster,
-                authEndpoint: "/api/pusher-auth",
                 enabledTransports: ["ws", "wss"],
-                auth: {
-                    params: {
-                        user_id: myIdRef.current,
-                        user_info: { id: myIdRef.current }
-                    }
+                // ✅ custom authorizer: channel_name + socket_id + roomKey + pin 전송
+                authorizer: (channel) => {
+                    return {
+                        authorize: async (socketId, callback) => {
+                            try {
+                                const res = await fetch("/api/pusher-auth", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                        socket_id: socketId,
+                                        channel_name: channel.name,
+                                        user_id: myIdRef.current,
+                                        roomKey: roomKeyRef.current,          // ✅ 현재 조인 대상
+                                        pin: (settings.pin || "").trim(),     // ✅ 현재 입력된 핀
+                                        roomLabel: settings.roomLabel || ""
+                                    })
+                                });
+
+                                if (!res.ok) {
+                                    const msg = await res.text().catch(() => "");
+                                    callback(new Error(msg || `Auth failed: ${res.status}`), null);
+                                    return;
+                                }
+
+                                const data = await res.json();
+                                callback(null, data);
+                            } catch (err) {
+                                callback(err, null);
+                            }
+                        }
+                    };
                 }
             });
             pusherRef.current = pusher;
@@ -545,9 +601,8 @@ export const WebRTCProvider = ({ children }) => {
                     addLog(`[System] Reconnecting... (Attempt ${retryCountRef.current}/3)`);
                     if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
                     retryTimeoutRef.current = setTimeout(() => {
-                        // targetRoomId may already include @@PIN. Reconstruct args for consistent behavior.
-                        const [roomName, roomPin] = String(targetRoomId).split('@@');
-                        startSystem(roomName, roomPin || null, leaderStatus);
+                        // Re-use precise label and pin from closure
+                        startSystem(label, pin || null, leaderStatus);
                     }, 3000); // 3s interval
                 } else {
                     addLog(`[System] CONNECTION FAILED after 3 attempts.`);
@@ -576,44 +631,55 @@ export const WebRTCProvider = ({ children }) => {
 
             addLog('STEP 5: SYNCING...'); // v108: Corrected numbering
             // v122: Use stable room key for subscription
-            const channel = pusher.subscribe(`presence-${roomKeyRef.current}`);
+            // v122: Use stable room key for subscription
+            const channelName = `presence-${roomKeyRef.current}`;
+            const channel = pusher.subscribe(channelName);
             channelRef.current = channel;
+            channelNameRef.current = channelName; // ✅ Set for cleanup
 
-            // ✅ FIX: 리더 재계산 로직 (멤버 변경 시마다 호출)
-            const recalcLeader = () => {
+            // ✅ Epoch Guard: Capture current epoch
+            const epoch = epochRef.current;
+
+            // ✅ 리더 재계산 (members snapshot 기반)
+            const recalcLeader = (membersSnapshot = null) => {
                 try {
                     const ids = [];
-                    // channel.members might not be fully populated immediately. 
-                    // Use a safe access or members object passed to subscription_succeeded if possible.
-                    // But here we need it for member_added/removed too.
-                    if (channel.members) {
-                        channel.members.each(m => ids.push(String(m.id)));
-                    }
-                    ids.sort(); // ✅ 모든 기기 동일 결과
 
+                    // 1) subscription_succeeded에서 받은 membersSnapshot이 있으면 그걸 최우선 사용
+                    if (membersSnapshot && typeof membersSnapshot.each === "function") {
+                        membersSnapshot.each((m) => ids.push(String(m.id)));
+                    } else if (channel.members && typeof channel.members.each === "function") {
+                        // 2) 그 외에는 channel.members 사용
+                        channel.members.each((m) => ids.push(String(m.id)));
+                    }
+
+                    // members가 아직 비어있으면 "리더 결정을 보류"하는게 핵심 포인트
                     if (ids.length === 0) {
-                        // Fallback if members is empty (shouldn't happen in connected state)
-                        setIsLeader(false);
                         return;
                     }
 
-                    const leaderId = ids[0];
-                    // Ensure type consistency
-                    const isNowLeader = String(myIdRef.current) === String(leaderId);
+                    ids.sort(); // 모든 기기에서 동일 결과 (user_id가 동일 규칙이면)
+                    const newLeaderId = ids[0];
+                    const me = String(myIdRef.current);
 
-                    setIsLeader(isNowLeader);
-                    if (isNowLeader) {
-                        console.log("[LEADER] I am MASTER. All IDs:", ids);
-                    } else {
-                        console.log("[LEADER] Master is", leaderId, "My ID:", myIdRef.current);
+                    // leaderId 변화가 있을 때만 상태 갱신 (불필요한 토글 방지)
+                    if (leaderIdRef.current !== newLeaderId) {
+                        leaderIdRef.current = newLeaderId;
+                        console.log("[LEADER] Leader changed ->", newLeaderId, "All IDs:", ids);
                     }
+
+                    const isNowLeader = me === String(leaderIdRef.current);
+                    setIsLeader(isNowLeader);
                 } catch (e) {
                     console.error("[LEADER] recalc error", e);
+                    // 에러 시에도 리더를 false로 확정하기보다 보수적으로 유지/해제 중 택1
                     setIsLeader(false);
                 }
             };
 
-            channel.bind('pusher:subscription_succeeded', (members) => {
+            // ✅ (A) subscription_succeeded: 여기가 “초기 멤버 스냅샷”의 가장 신뢰 구간
+            channel.bind("pusher:subscription_succeeded", (members) => {
+                if (epoch !== epochRef.current) return; // ✅ Epoch Guard
                 if (timeoutRef.current) clearTimeout(timeoutRef.current);
                 retryCountRef.current = 0;
                 addLog('STEP 5: SUB OK');
@@ -621,9 +687,13 @@ export const WebRTCProvider = ({ children }) => {
                 setPeerId(myIdRef.current);
                 syncPeersWithPusher(members);
 
-                // ✅ 여기서도 한 번 계산하되, 동시에 들어오는 케이스 대비 딜레이 재계산
-                recalcLeader();
-                setTimeout(recalcLeader, 100);
+                addLog("PRESENCE: subscription_succeeded");
+                recalcLeader(members);
+
+                // ✅ 아주 중요: 200ms 후 한 번 더 (멤버 리스트 완성 지연 대응)
+                setTimeout(() => {
+                    if (epoch === epochRef.current) recalcLeader();
+                }, 200);
 
                 members.each(member => {
                     if (member.id !== myIdRef.current) {
@@ -633,27 +703,13 @@ export const WebRTCProvider = ({ children }) => {
                 });
             });
 
-            // ✅ 상대가 들어오거나 나가면 리더 재계산
+            // ✅ (B) 멤버 변동 이벤트마다 재계산
             channel.bind("pusher:member_added", (member) => {
+                if (epoch !== epochRef.current) return; // ✅ Epoch Guard
                 addLog(`[Member Joined] ${member.id}`);
                 recalcLeader();
-            });
-            channel.bind("pusher:member_removed", (member) => {
-                addLog(`[Member Left] ${member.id}`);
-                recalcLeader();
-            });
 
-            // v99: Catch subscription errors (e.g., auth failure or rate limit)
-            channel.bind('pusher:subscription_error', (status) => {
-                addLog(`[System] ERR: SUB_FAILED (${status})`);
-                if (timeoutRef.current) clearTimeout(timeoutRef.current);
-                setStatus('OFFLINE');
-                setError(`SUB_FAILED: ${status}`);
-                lastJoinedRoomRef.current = null; // ✅ Reset to allow retry
-            });
-
-            channel.bind('pusher:member_added', (member) => {
-                addLog(`[System] Member Joined: ${member.id}`);
+                // 기존 로직 유지 (연결 수립)
                 syncPeersWithPusher();
                 if (member.id !== myIdRef.current) {
                     const isOfferer = myIdRef.current < member.id;
@@ -661,13 +717,34 @@ export const WebRTCProvider = ({ children }) => {
                 }
             });
 
-            channel.bind('pusher:member_removed', (member) => {
-                addLog(`[System] Member Left: ${member.id}`);
+            channel.bind("pusher:member_removed", (member) => {
+                if (epoch !== epochRef.current) return; // ✅ Epoch Guard
+                addLog(`[Member Left] ${member.id}`);
+                recalcLeader();
+
+                // 기존 로직 유지 (연결 해제)
                 removePeer(member.id);
                 syncPeersWithPusher();
             });
 
+            // v99: Catch subscription errors (e.g., auth failure or rate limit)
+            channel.bind('pusher:subscription_error', (status) => {
+                if (epoch !== epochRef.current) return; // ✅ Epoch Guard
+                addLog(`[System] ERR: SUB_FAILED (${status})`);
+                if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                setStatus('OFFLINE');
+                setError(`SUB_FAILED: ${status}`);
+                lastJoinedRoomRef.current = null; // ✅ Reset to allow retry
+            });
+
+            // Remove redundant redundant bindings
+            /* 
+            channel.bind('pusher:member_added', ...) was Merged above
+            channel.bind('pusher:member_removed', ...) was Merged above
+            */
+
             channel.bind('client-signal', async (data) => {
+                if (epoch !== epochRef.current) return; // ✅ Epoch Guard
                 if (data.to !== myIdRef.current && data.to !== 'broadcast') return;
                 try {
                     if (data.type === 'offer') {
@@ -711,6 +788,7 @@ export const WebRTCProvider = ({ children }) => {
 
             // v122: Handle Room Deletion
             channel.bind('client-room-deleted', (data) => {
+                if (epoch !== epochRef.current) return; // ✅ Epoch Guard
                 addLog(`[System] ROOM DELETED by ${data?.by || 'master'}`);
                 cleanup();
                 setStatus('OFFLINE');
