@@ -579,6 +579,40 @@ export const WebRTCProvider = ({ children }) => {
             const channel = pusher.subscribe(`presence-${roomKeyRef.current}`);
             channelRef.current = channel;
 
+            // ✅ FIX: 리더 재계산 로직 (멤버 변경 시마다 호출)
+            const recalcLeader = () => {
+                try {
+                    const ids = [];
+                    // channel.members might not be fully populated immediately. 
+                    // Use a safe access or members object passed to subscription_succeeded if possible.
+                    // But here we need it for member_added/removed too.
+                    if (channel.members) {
+                        channel.members.each(m => ids.push(String(m.id)));
+                    }
+                    ids.sort(); // ✅ 모든 기기 동일 결과
+
+                    if (ids.length === 0) {
+                        // Fallback if members is empty (shouldn't happen in connected state)
+                        setIsLeader(false);
+                        return;
+                    }
+
+                    const leaderId = ids[0];
+                    // Ensure type consistency
+                    const isNowLeader = String(myIdRef.current) === String(leaderId);
+
+                    setIsLeader(isNowLeader);
+                    if (isNowLeader) {
+                        console.log("[LEADER] I am MASTER. All IDs:", ids);
+                    } else {
+                        console.log("[LEADER] Master is", leaderId, "My ID:", myIdRef.current);
+                    }
+                } catch (e) {
+                    console.error("[LEADER] recalc error", e);
+                    setIsLeader(false);
+                }
+            };
+
             channel.bind('pusher:subscription_succeeded', (members) => {
                 if (timeoutRef.current) clearTimeout(timeoutRef.current);
                 retryCountRef.current = 0;
@@ -587,24 +621,9 @@ export const WebRTCProvider = ({ children }) => {
                 setPeerId(myIdRef.current);
                 syncPeersWithPusher(members);
 
-                // ✅ FIX 1 — MASTER 판별을 “첫 접속자” 기준으로 (100% 해결 패치)
-                try {
-                    const ids = Object.keys(members.members || {});
-                    if (!ids.length) {
-                        setIsLeader(false);
-                        return;
-                    }
-
-                    // 가장 먼저 들어온 사람 = 첫 id
-                    const leaderId = ids.sort()[0]; // ✅ 핵심: 정렬해서 가장 작은 ID를 리더로 고정
-
-                    setIsLeader(myIdRef.current === leaderId);
-
-                    console.log("LEADER =", leaderId, "ME =", myIdRef.current);
-                } catch (e) {
-                    console.error("leader calc error", e);
-                    setIsLeader(false);
-                }
+                // ✅ 여기서도 한 번 계산하되, 동시에 들어오는 케이스 대비 딜레이 재계산
+                recalcLeader();
+                setTimeout(recalcLeader, 100);
 
                 members.each(member => {
                     if (member.id !== myIdRef.current) {
@@ -612,6 +631,16 @@ export const WebRTCProvider = ({ children }) => {
                         initiateConnection(member.id, isOfferer);
                     }
                 });
+            });
+
+            // ✅ 상대가 들어오거나 나가면 리더 재계산
+            channel.bind("pusher:member_added", (member) => {
+                addLog(`[Member Joined] ${member.id}`);
+                recalcLeader();
+            });
+            channel.bind("pusher:member_removed", (member) => {
+                addLog(`[Member Left] ${member.id}`);
+                recalcLeader();
             });
 
             // v99: Catch subscription errors (e.g., auth failure or rate limit)
