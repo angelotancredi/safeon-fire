@@ -206,33 +206,24 @@ const NavButton = ({ icon, label, active, onClick }) => (
 const SquadView = ({ rtc }) => {
   const { peers, isConnected, peerId, talkingPeers, availableRooms, settings } = rtc;
 
-  // ✅ 보기 좋은 채널명 규칙(서버/기기 상관 없이 동일)
-  const ROOM_LABEL_MAP = {
-    "R_69630F74": "동상",
-    "R_182C1BFB": "지휘",
-  };
-
-  const prettyRoomName = (roomId) => {
-    const raw = String(roomId || "");
-    const [head] = raw.split("@@");
-    const key = head || raw || "radio";
-
-    if (ROOM_LABEL_MAP[key]) return ROOM_LABEL_MAP[key];
-
-    return key; // 그 외는 그대로
-  };
+  // ✅ FIX 2 — SquadView 채널명 소스 통일 (단일 규칙)
+  const getLabel = (id) => String(id || '').split('@@')[0];
 
   // callsign도 동일 규칙 적용
-  const roomLabel = prettyRoomName(settings?.roomId);
+  const roomLabel = getLabel(settings.roomId);
   const shortId = (id) => (id ? String(id).slice(-4) : "----");
   const callsign = (id) => `${roomLabel}-${shortId(id)}`;
 
-  const effectiveRooms = availableRooms.map((r) => {
-    if (r.id === settings?.roomId && isConnected) {
-      return { ...r, userCount: Math.max(r.userCount, peers.length + 1) };
-    }
-    return r;
-  });
+  // ✅ FIX 3 — 기존 잘못 생성된 채널 정리 (0명인 방 숨김)
+  const effectiveRooms = availableRooms
+    .filter(r => r.userCount > 0)
+    .map((r) => {
+      // 내가 접속한 방이면 인원수 +1 (내 자신 포함) 보정
+      if (r.id === settings?.roomId && isConnected) {
+        return { ...r, userCount: Math.max(r.userCount, peers.length + 1) };
+      }
+      return r;
+    });
 
   if (isConnected && settings?.roomId && !effectiveRooms.find((r) => r.id === settings.roomId)) {
     effectiveRooms.unshift({
@@ -256,7 +247,7 @@ const SquadView = ({ rtc }) => {
         <div className="space-y-4">
           {effectiveRooms.length > 0 ? (
             effectiveRooms.map((room) => {
-              const roomName = prettyRoomName(room.id);
+              const roomName = getLabel(room.id);
               const isActive = room.id === settings?.roomId && isConnected;
 
               return (

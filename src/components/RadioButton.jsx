@@ -449,7 +449,7 @@ const RadioButton = ({ rtc }) => {
                                                         setInputPin('');
                                                         setPinError(false);
                                                     } else {
-                                                        updateSettings({ roomId: room.id });
+                                                        // ✅ FIX 4 — 조인 시 settings.roomId 덮어쓰기 제거
                                                         startSystem(room.id);
                                                         setIsModalOpen(false);
                                                     }

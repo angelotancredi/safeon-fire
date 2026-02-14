@@ -587,6 +587,24 @@ export const WebRTCProvider = ({ children }) => {
                 setPeerId(myIdRef.current);
                 syncPeersWithPusher(members);
 
+                // ✅ FIX 1 — MASTER 판별을 “첫 접속자” 기준으로
+                const ids = Object.keys(members.members || {});
+                // members.members is an object where keys are IDs.
+                // Note: pusher-js members object might behave differently. 
+                // members.each is the standard way, but members.members is the internal hash.
+                // Let's stick to the user's request if possible, but verify members structure.
+                // Actually, pusher members object has `members` property which is a hash of id -> info.
+                // So Object.keys(members.members) should work.
+                if (Object.keys(members.members).length > 0) {
+                    const sortedIds = Object.keys(members.members).sort();
+                    const leaderId = sortedIds[0];
+                    const amILeader = myIdRef.current === leaderId;
+                    setIsLeader(amILeader);
+                    if (amILeader) {
+                        addLog(`[System] I am the MASTER (Leader ID: ${leaderId})`);
+                    }
+                }
+
                 members.each(member => {
                     if (member.id !== myIdRef.current) {
                         const isOfferer = myIdRef.current < member.id;
