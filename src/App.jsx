@@ -247,7 +247,7 @@ const SquadView = ({ rtc }) => {
         <div className="space-y-4">
           {effectiveRooms.length > 0 ? (
             effectiveRooms.map((room) => {
-              const roomName = getLabel(room.id);
+              const roomName = room.label || getLabel(room.id); // Fallback for safety
               const isActive = room.id === settings?.roomId && isConnected;
 
               return (

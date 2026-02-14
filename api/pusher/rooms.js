@@ -25,11 +25,21 @@ export default async function handler(req, res) {
             const body = await result.json();
             const channels = body.channels || {};
 
+            // ✅ FIX 2 — 기존 채널 리스트 한글 안됨 (서버 매핑 추가)
+            const ROOM_LABEL_MAP = {
+                "R_69630F74": "동상",
+                "R_182C1BFB": "지휘",
+            };
+
             // Format for frontend: strip "presence-" and only return names
-            const rooms = Object.keys(channels).map(name => ({
-                id: name.replace("presence-", ""),
-                userCount: channels[name].user_count || 0
-            }));
+            const rooms = Object.keys(channels).map(name => {
+                const key = name.replace("presence-", "");
+                return {
+                    id: key,
+                    label: ROOM_LABEL_MAP[key] || key,
+                    userCount: channels[name].user_count || 0
+                };
+            });
 
             return res.status(200).json({ rooms });
         } else {

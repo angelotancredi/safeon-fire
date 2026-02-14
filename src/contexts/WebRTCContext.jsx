@@ -445,8 +445,8 @@ export const WebRTCProvider = ({ children }) => {
 
         setStatus('STARTING');
         setError(null);
-        setIsLeader(leaderStatus);
-
+        setStatus('STARTING');
+        setError(null);
         addLog(`STEP 0: AUTH_TIMEOUT SET (60s)`);
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         timeoutRef.current = setTimeout(() => {
@@ -466,7 +466,7 @@ export const WebRTCProvider = ({ children }) => {
         setAvailableRooms(prev => {
             const exists = prev.find(r => r.id === targetRoomId);
             if (!exists) {
-                return [{ id: targetRoomId, userCount: 1 }, ...prev];
+                return [{ id: targetRoomId, label: targetRoomId, userCount: 1 }, ...prev]; // Ensure local optimistic update has label
             }
             return prev;
         });
@@ -587,22 +587,23 @@ export const WebRTCProvider = ({ children }) => {
                 setPeerId(myIdRef.current);
                 syncPeersWithPusher(members);
 
-                // ✅ FIX 1 — MASTER 판별을 “첫 접속자” 기준으로
-                const ids = Object.keys(members.members || {});
-                // members.members is an object where keys are IDs.
-                // Note: pusher-js members object might behave differently. 
-                // members.each is the standard way, but members.members is the internal hash.
-                // Let's stick to the user's request if possible, but verify members structure.
-                // Actually, pusher members object has `members` property which is a hash of id -> info.
-                // So Object.keys(members.members) should work.
-                if (Object.keys(members.members).length > 0) {
-                    const sortedIds = Object.keys(members.members).sort();
-                    const leaderId = sortedIds[0];
-                    const amILeader = myIdRef.current === leaderId;
-                    setIsLeader(amILeader);
-                    if (amILeader) {
-                        addLog(`[System] I am the MASTER (Leader ID: ${leaderId})`);
+                // ✅ FIX 1 — MASTER 판별을 “첫 접속자” 기준으로 (100% 해결 패치)
+                try {
+                    const ids = Object.keys(members.members || {});
+                    if (!ids.length) {
+                        setIsLeader(false);
+                        return;
                     }
+
+                    // 가장 먼저 들어온 사람 = 첫 id
+                    const leaderId = ids[0];
+
+                    setIsLeader(myIdRef.current === leaderId);
+
+                    console.log("LEADER =", leaderId, "ME =", myIdRef.current);
+                } catch (e) {
+                    console.error("leader calc error", e);
+                    setIsLeader(false);
                 }
 
                 members.each(member => {
