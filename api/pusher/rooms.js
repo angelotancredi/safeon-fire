@@ -1,6 +1,6 @@
 import Pusher from "pusher";
+import { getDb } from "../../src/lib/firebaseAdmin";
 
-// v1.0.0: API to list active presence channels
 export default async function handler(req, res) {
     if (req.method !== "GET") {
         return res.status(405).json({ error: "Method Not Allowed" });
@@ -15,39 +15,52 @@ export default async function handler(req, res) {
     });
 
     try {
-        // Fetch channels with presence- prefix
+        // 🔹 1. 활성 presence 채널 조회
         const result = await pusher.get({
             path: "/channels",
-            params: { filter_by_prefix: "presence-" },
+            params: { filter_by_prefix: "presence-", info: "user_count" },
         });
 
-        if (result.status === 200) {
-            const body = await result.json();
-            const channels = body.channels || {};
-
-            // ✅ FIX 2 — 기존 채널 리스트 한글 안됨 (서버 매핑 추가)
-            const ROOM_LABEL_MAP = {
-                "R_69630F74": "동상",
-                "R_182C1BFB": "지휘",
-            };
-
-            // Format for frontend: strip "presence-" and only return names
-            const rooms = Object.keys(channels).map(name => {
-                const key = name.replace("presence-", "");
-                return {
-                    id: key,
-                    label: ROOM_LABEL_MAP[key] || key,
-                    userCount: channels[name].user_count || 0
-                };
-            });
-
-            return res.status(200).json({ rooms });
-        } else {
-            console.error("[Rooms-API] Pusher Error:", result.status);
+        if (result.status !== 200) {
             return res.status(result.status).json({ error: "Failed to fetch channels" });
         }
-    } catch (error) {
-        console.error("[Rooms-API] Crash:", error);
-        return res.status(500).json({ error: "Internal Server Error" });
+
+        const body = await result.json();
+        const channels = body.channels || {};
+
+        const roomKeys = Object.keys(channels).map(n =>
+            n.replace("presence-", "").toUpperCase()
+        );
+
+        // 🔹 2. Firestore에서 메타데이터 조회
+        const db = getDb();
+
+        // Check if there are any room keys causing extra reads or empty query
+        const refs = roomKeys.map(k => db.collection("rooms").doc(k));
+        const snaps = refs.length ? await db.getAll(...refs) : [];
+
+        const metaMap = new Map();
+        snaps.forEach(s => {
+            if (s.exists) metaMap.set(s.id, s.data());
+        });
+
+        // 🔹 3. 결합 응답 생성
+        const rooms = roomKeys.map(k => {
+            const m = metaMap.get(k);
+            return {
+                id: k,
+                label: m?.label || k,       // ✅ 한글명
+                hasPin: !!m?.pinHash,       // ✅ 비번 여부
+                userCount: channels[`presence-${k.toLowerCase()}`]?.user_count
+                    ?? channels[`presence-${k}`]?.user_count
+                    ?? 0
+            };
+        });
+
+        return res.status(200).json({ rooms });
+
+    } catch (e) {
+        console.error("[Rooms-API] Crash:", e);
+        return res.status(500).json({ error: e.message });
     }
 }
