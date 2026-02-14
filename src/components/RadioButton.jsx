@@ -15,7 +15,8 @@ const RadioButton = ({ rtc }) => {
 
     // Helper functions for display
     // Helper functions for display
-    const roomLabel = (settings?.roomLabel || (settings?.roomId || '').split('@@')[0]) || 'radio';
+    // v134: Show '연결 중...' during channel transition (roomLabel is null)
+    const roomLabel = settings?.roomLabel || (settings?.roomId ? settings.roomId.split('@@')[0] : '연결 중...');
     const shortId = (id) => (id ? String(id).slice(-4) : '----');
     const callsign = (id) => `${roomLabel}-${shortId(id)}`;
 
@@ -435,7 +436,9 @@ const RadioButton = ({ rtc }) => {
                                     </div>
                                 ) : availableRooms.length > 0 ? (
                                     availableRooms.map((room) => {
-                                        const [displayName, password] = room.id.split('@@');
+                                        // v134: Prefer Backend Label > ID Parse
+                                        const displayName = room.label || room.id.split('@@')[0];
+                                        const password = room.id.split('@@')[1];
                                         return (
                                             <motion.button
                                                 key={room.id}

@@ -429,6 +429,9 @@ export const WebRTCProvider = ({ children }) => {
         if (!inputRoomLabel) return;
 
         // 1. Label/Pin Parsing
+        // v134: State Clean - Clear old label immediately to prevent ghosting
+        updateSettings({ roomLabel: null });
+
         const label = String(inputRoomLabel || '').trim() || '무전'; // v133: Fixed 'label is not defined' & added fallback
         const pin = (inputPin || pinRef.current || '').trim();
 

@@ -210,7 +210,10 @@ const SquadView = ({ rtc }) => {
   const getLabel = (id) => String(id || '').split('@@')[0];
 
   // callsign도 동일 규칙 적용
-  const roomLabel = getLabel(settings.roomId);
+  // v134: Explicitly use settings.roomLabel if available, '연결 중...' during transition
+  const getDisplayLabel = () => settings?.roomLabel || getLabel(settings.roomId) || '연결 중...';
+  const roomLabel = getDisplayLabel();
+
   const shortId = (id) => (id ? String(id).slice(-4) : "----");
   const callsign = (id) => `${roomLabel}-${shortId(id)}`;
 
