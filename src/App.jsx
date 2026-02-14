@@ -206,23 +206,105 @@ const NavButton = ({ icon, label, active, onClick }) => (
 const SquadView = ({ rtc }) => {
   const { peers, isConnected, peerId, talkingPeers, availableRooms, settings } = rtc;
 
-  const roomLabel = (settings?.roomId || '').split('@@')[0] || 'radio';
-  const shortId = (id) => (id ? String(id).slice(-4) : '----');
+  // roomKey는 현재 코드 기준으로 settings.roomId / room.id 전체 문자열(예: "radio@@xxxx" 또는 "alpha")
+  const roomKeyOf = (id) => String(id || "");
+
+  // ===== (1) 로컬 매핑 저장소: roomKey -> channelName =====
+  const STORAGE_KEY = "ptt_room_alias_v1";
+
+  const readAliases = () => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const writeAliases = (obj) => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(obj));
+  };
+
+  const [aliases, setAliases] = useState(() => readAliases());
+
+  // 다른 탭/창에서 수정 시 동기화(옵션)
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === STORAGE_KEY) setAliases(readAliases());
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  const setAlias = (roomId, name) => {
+    const key = roomKeyOf(roomId);
+    const next = { ...aliases, [key]: name };
+    setAliases(next);
+    writeAliases(next);
+  };
+
+  const deleteAlias = (roomId) => {
+    const key = roomKeyOf(roomId);
+    const next = { ...aliases };
+    delete next[key];
+    setAliases(next);
+    writeAliases(next);
+  };
+
+  // ===== (2) 표시명 결정: alias 우선, 없으면 기존 규칙( @@ 앞 ) =====
+  const defaultRoomLabel = (roomId) => {
+    const [head] = roomKeyOf(roomId).split("@@");
+    return head || "radio";
+  };
+
+  const displayRoomName = (roomId) => {
+    const key = roomKeyOf(roomId);
+    return aliases[key] || defaultRoomLabel(key);
+  };
+
+  // callsign은 "현재 접속 채널 표시명" 기준
+  const roomLabel = displayRoomName(settings?.roomId);
+  const shortId = (id) => (id ? String(id).slice(-4) : "----");
   const callsign = (id) => `${roomLabel}-${shortId(id)}`;
 
-  const effectiveRooms = availableRooms.map(r => {
+  // ===== (3) rooms 리스트 보정 로직은 기존 유지 =====
+  const effectiveRooms = availableRooms.map((r) => {
     if (r.id === settings?.roomId && isConnected) {
       return { ...r, userCount: Math.max(r.userCount, peers.length + 1) };
     }
     return r;
   });
 
-  if (isConnected && settings?.roomId && !effectiveRooms.find(r => r.id === settings.roomId)) {
+  if (
+    isConnected &&
+    settings?.roomId &&
+    !effectiveRooms.find((r) => r.id === settings.roomId)
+  ) {
     effectiveRooms.unshift({
       id: settings.roomId,
-      userCount: peers.length + 1
+      userCount: peers.length + 1,
     });
   }
+
+  // ===== (4) UI 액션: 이름 편집 / 매핑 삭제 =====
+  const onRename = (roomId) => {
+    const current = displayRoomName(roomId);
+    const next = window.prompt("채널명을 입력하세요", current);
+    if (!next) return;
+    const trimmed = next.trim();
+    if (!trimmed) return;
+    setAlias(roomId, trimmed);
+  };
+
+  const onRemoveMapping = (roomId) => {
+    const name = displayRoomName(roomId);
+    const ok = window.confirm(
+      `채널 "${name}"의 이름/매핑을 삭제할까요?\n\n※ 채널 자체(Pusher presence)는 삭제되지 않습니다.\n(구독자 0명이 되면 자연히 사라집니다.)`
+    );
+    if (!ok) return;
+    deleteAlias(roomId);
+  };
 
   return (
     <div className="flex-1 flex flex-col w-full min-h-0 bg-tactical-bg p-4 overflow-y-auto">
@@ -231,30 +313,78 @@ const SquadView = ({ rtc }) => {
           <h2 className="text-[14px] font-black tracking-[0.2em] text-tactical-muted uppercase flex items-center">
             <Users className="w-4 h-4 mr-2" /> Sector Status
           </h2>
-          <span className="text-[10px] font-mono font-bold text-tactical-muted opacity-80">{effectiveRooms.length} Active Channels</span>
+          <span className="text-[10px] font-mono font-bold text-tactical-muted opacity-80">
+            {effectiveRooms.length} Active Channels
+          </span>
         </div>
 
         <div className="space-y-4">
           {effectiveRooms.length > 0 ? (
             effectiveRooms.map((room) => {
-              const [roomName] = room.id.split('@@');
               const isActive = room.id === settings?.roomId && isConnected;
+              const roomName = displayRoomName(room.id);
+              const hasAlias = !!aliases[roomKeyOf(room.id)];
 
               return (
-                <div key={room.id} className={`bg-white border rounded-[32px] overflow-hidden transition-all shadow-sm ${isActive ? 'border-tactical-accent/40 ring-1 ring-tactical-accent/5' : 'border-tactical-border'}`}>
+                <div
+                  key={room.id}
+                  className={`bg-white border rounded-[32px] overflow-hidden transition-all shadow-sm ${isActive
+                      ? "border-tactical-accent/40 ring-1 ring-tactical-accent/5"
+                      : "border-tactical-border"
+                    }`}
+                >
                   {/* Channel Header */}
-                  <div className={`p-4 flex items-center justify-between ${isActive ? 'bg-tactical-accent/5' : ''}`}>
+                  <div
+                    className={`p-4 flex items-center justify-between ${isActive ? "bg-tactical-accent/5" : ""
+                      }`}
+                  >
                     <div className="flex items-center space-x-3">
-                      <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isActive ? 'bg-tactical-accent text-white' : 'bg-tactical-surface text-tactical-muted'}`}>
+                      <div
+                        className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isActive
+                            ? "bg-tactical-accent text-white"
+                            : "bg-tactical-surface text-tactical-muted"
+                          }`}
+                      >
                         <Radio className="w-5 h-5" />
                       </div>
+
                       <div>
                         <div className="text-[14px] font-black text-tactical-fg uppercase tracking-tight flex items-center">
                           {roomName}
-                          {isActive && <span className="ml-2 px-1.5 py-0.5 bg-tactical-accent text-white text-[8px] rounded uppercase font-black">Online</span>}
+                          {isActive && (
+                            <span className="ml-2 px-1.5 py-0.5 bg-tactical-accent text-white text-[8px] rounded uppercase font-black">
+                              Online
+                            </span>
+                          )}
+                          {hasAlias && (
+                            <span className="ml-2 px-1.5 py-0.5 bg-tactical-surface text-tactical-muted text-[8px] rounded uppercase font-black">
+                              Named
+                            </span>
+                          )}
                         </div>
-                        <div className="text-[10px] text-tactical-muted font-bold uppercase opacity-60">Frequency Shared • {room.userCount} Nodes</div>
+                        <div className="text-[10px] text-tactical-muted font-bold uppercase opacity-60">
+                          Frequency Shared • {room.userCount} Nodes
+                        </div>
                       </div>
+                    </div>
+
+                    {/* 오른쪽 액션(간단) */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onRename(room.id)}
+                        className="text-[9px] font-black text-tactical-fg bg-white border border-tactical-border px-2 py-1 rounded-full uppercase transition-transform active:scale-95"
+                      >
+                        Rename
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => onRemoveMapping(room.id)}
+                        className="text-[9px] font-black text-white bg-tactical-danger px-2 py-1 rounded-full uppercase transition-transform active:scale-95"
+                      >
+                        Remove
+                      </button>
                     </div>
                   </div>
 
@@ -266,35 +396,41 @@ const SquadView = ({ rtc }) => {
                         <div className="p-3 bg-tactical-surface rounded-2xl flex items-center justify-between">
                           <div className="flex items-center space-x-3">
                             <div className="w-2 h-2 rounded-full bg-tactical-accent animate-pulse" />
-                            <span className="text-[12px] font-black text-tactical-fg">{callsign(peerId)} <span className="opacity-40 text-[10px] ml-1">(YOU)</span></span>
+                            <span className="text-[12px] font-black text-tactical-fg">
+                              {callsign(peerId)}{" "}
+                              <span className="opacity-40 text-[10px] ml-1">(YOU)</span>
+                            </span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-[9px] font-black text-tactical-accent uppercase">MASTER</span>
+                            <span className="text-[9px] font-black text-tactical-accent uppercase">
+                              MASTER
+                            </span>
 
-                            {rtc.isLeader && isActive && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  if (window.confirm("정말 이 채널을 삭제하시겠습니까? 모든 대원이 즉시 연결 해제됩니다.")) {
-                                    rtc.deleteCurrentRoom?.();
-                                  }
-                                }}
-                                className="text-[9px] font-black text-white bg-tactical-danger px-2 py-1 rounded-full uppercase transition-transform active:scale-95"
-                              >
-                                Delete
-                              </button>
-                            )}
+                            {/* ✅ 기존 "Delete(강제 해제)" 제거/대체: 매핑만 지우는 Remove 버튼을 위에서 제공 */}
                           </div>
                         </div>
+
                         {/* Peers */}
-                        {peers.map(peer => (
-                          <div key={peer} className="p-3 bg-white border border-tactical-border rounded-2xl flex items-center justify-between">
+                        {peers.map((peer) => (
+                          <div
+                            key={peer}
+                            className="p-3 bg-white border border-tactical-border rounded-2xl flex items-center justify-between"
+                          >
                             <div className="flex items-center space-x-3">
-                              <div className={`w-2 h-2 rounded-full ${talkingPeers.has(peer) ? 'bg-tactical-ok animate-pulse' : 'bg-tactical-muted/40'}`} />
-                              <span className="text-[12px] font-bold text-tactical-fg">{callsign(peer)}</span>
+                              <div
+                                className={`w-2 h-2 rounded-full ${talkingPeers.has(peer)
+                                    ? "bg-tactical-ok animate-pulse"
+                                    : "bg-tactical-muted/40"
+                                  }`}
+                              />
+                              <span className="text-[12px] font-bold text-tactical-fg">
+                                {callsign(peer)}
+                              </span>
                             </div>
                             {talkingPeers.has(peer) && (
-                              <span className="text-[8px] font-black text-tactical-ok uppercase">Talking...</span>
+                              <span className="text-[8px] font-black text-tactical-ok uppercase">
+                                Talking...
+                              </span>
                             )}
                           </div>
                         ))}
@@ -307,7 +443,9 @@ const SquadView = ({ rtc }) => {
           ) : (
             <div className="py-20 flex flex-col items-center justify-center opacity-40">
               <Wifi className="w-10 h-10 mb-4" />
-              <p className="text-[10px] font-black tracking-widest uppercase">No Active Sectors Found</p>
+              <p className="text-[10px] font-black tracking-widest uppercase">
+                No Active Sectors Found
+              </p>
             </div>
           )}
         </div>
