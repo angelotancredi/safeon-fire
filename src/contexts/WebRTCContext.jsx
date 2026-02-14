@@ -596,7 +596,7 @@ export const WebRTCProvider = ({ children }) => {
                     }
 
                     // 가장 먼저 들어온 사람 = 첫 id
-                    const leaderId = ids[0];
+                    const leaderId = ids.sort()[0]; // ✅ 핵심: 정렬해서 가장 작은 ID를 리더로 고정
 
                     setIsLeader(myIdRef.current === leaderId);
 
