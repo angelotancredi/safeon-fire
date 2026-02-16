@@ -59,6 +59,7 @@ export default async function handler(req, res) {
     const body = req.body || {};
     const labelIn = body.label;
     const pinIn = body.pin; // string | null | undefined
+    const userId = body.userId || null; // v136: Room creator tracking
 
     if (!labelIn) return res.status(400).json({ error: "label required" });
 
@@ -92,11 +93,13 @@ export default async function handler(req, res) {
 
     if (!snap.exists) {
       data.createdAt = admin.firestore.FieldValue.serverTimestamp();
+      // v136: Store room creator ID (only on first creation)
+      if (userId) data.creatorId = userId;
     }
 
     await ref.set(data, { merge: true });
 
-    return res.status(200).json({ ok: true, roomKey, label });
+    return res.status(200).json({ ok: true, roomKey, label, creatorId: snap.exists ? (snap.data()?.creatorId || null) : (userId || null) });
   } catch (e) {
     console.error("[rooms-upsert] error", e);
     return res.status(500).json({ error: e.message || "server error" });

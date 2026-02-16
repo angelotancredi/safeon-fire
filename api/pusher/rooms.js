@@ -59,6 +59,7 @@ export default async function handler(req, res) {
                 id: k,
                 label: m?.label || k,
                 hasPin: !!m?.pinHash,
+                creatorId: m?.creatorId || null, // v136: Room creator for leader sync
                 userCount: channels[`presence-${k.toLowerCase()}`]?.user_count
                     ?? channels[`presence-${k}`]?.user_count
                     ?? 0

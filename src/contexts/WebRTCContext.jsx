@@ -65,6 +65,7 @@ export const WebRTCProvider = ({ children }) => {
     const roomKeyRef = useRef(null);
     const channelIdRef = useRef(null);    // v126: Strict Room Key Format (R_XXXXXXXX)
     const pinRef = useRef(""); // v128: Immediate PIN access for auth
+    const creatorIdRef = useRef(null); // v136: Room creator ID for leader sync
 
     // v127: Epoch Guard & Cleanup Refs
     const channelNameRef = useRef(null);
@@ -569,14 +570,22 @@ export const WebRTCProvider = ({ children }) => {
 
             // ✅ 방 문서 보장 (DB에 없으면 생성 / 있으면 갱신) -> v128: pinRef 사용
             try {
-                await fetch("/api/rooms-upsert", {
+                const upsertRes = await fetch("/api/rooms-upsert", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         label: settings.roomLabel || label,
-                        pin: (pinRef.current || "").trim(), // 핀 입력이 있으면 같이
+                        pin: (pinRef.current || "").trim(),
+                        userId: myIdRef.current, // v136: Track room creator
                     }),
                 });
+                // v136: Extract creatorId from upsert response
+                if (upsertRes.ok) {
+                    const upsertData = await upsertRes.json();
+                    if (upsertData.creatorId) {
+                        creatorIdRef.current = upsertData.creatorId;
+                    }
+                }
             } catch (e) {
                 console.warn("[Room-Upsert] Skipped or Failed:", e);
             }
@@ -588,12 +597,16 @@ export const WebRTCProvider = ({ children }) => {
                     const { rooms: roomList } = await checkRes.json();
                     const targetRoom = roomList.find(r => r.id === roomKey);
                     if (targetRoom?.hasPin && !pin) {
-                        addLog(`[보안] PIN이 필요한 채널입니다: ${displayRoom}`);
+                        addLog(`[보안] PIN이 필요한 채널입니다: ${label}`);
                         setError('PIN_REQUIRED: 이 채널은 비밀번호가 필요합니다.');
                         setStatus('OFFLINE');
                         lastJoinedRoomRef.current = null;
                         if (timeoutRef.current) clearTimeout(timeoutRef.current);
                         return;
+                    }
+                    // v136: Store creatorId from rooms API (fallback if upsert didn't return it)
+                    if (targetRoom?.creatorId && !creatorIdRef.current) {
+                        creatorIdRef.current = targetRoom.creatorId;
                     }
                 }
             } catch (e) {
@@ -703,39 +716,37 @@ export const WebRTCProvider = ({ children }) => {
             // ✅ Epoch Guard: Capture current epoch
             const epoch = ++epochRef.current;
 
-            // ✅ 리더 재계산 (members snapshot 기반)
-            const recalcLeader = (membersSnapshot = null) => {
+            // ✅ v136: 리더 결정 — Firebase creatorId 기반 (방장만 Master)
+            const recalcLeader = () => {
                 try {
-                    const ids = [];
-
-                    // 1) subscription_succeeded에서 받은 membersSnapshot이 있으면 그걸 최우선 사용
-                    if (membersSnapshot && typeof membersSnapshot.each === "function") {
-                        membersSnapshot.each((m) => ids.push(String(m.id)));
-                    } else if (channel.members && typeof channel.members.each === "function") {
-                        // 2) 그 외에는 channel.members 사용
-                        channel.members.each((m) => ids.push(String(m.id)));
-                    }
-
-                    // members가 아직 비어있으면 "리더 결정을 보류"하는게 핵심 포인트
-                    if (ids.length === 0) {
-                        return;
-                    }
-
-                    ids.sort(); // 모든 기기에서 동일 결과 (user_id가 동일 규칙이면)
-                    const newLeaderId = ids[0];
                     const me = String(myIdRef.current);
+                    const creatorId = creatorIdRef.current;
 
-                    // leaderId 변화가 있을 때만 상태 갱신 (불필요한 토글 방지)
-                    if (leaderIdRef.current !== newLeaderId) {
-                        leaderIdRef.current = newLeaderId;
-                        console.log("[LEADER] Leader changed ->", newLeaderId, "All IDs:", ids);
+                    if (creatorId) {
+                        // Firebase에 기록된 방장과 내 ID 비교
+                        const isNowLeader = me === String(creatorId);
+                        if (leaderIdRef.current !== creatorId) {
+                            leaderIdRef.current = creatorId;
+                            console.log("[LEADER] Creator-based leader:", creatorId, "Am I leader?", isNowLeader);
+                        }
+                        setIsLeader(isNowLeader);
+                    } else {
+                        // creatorId가 없으면 (기존 방) fallback: 가장 작은 ID가 리더
+                        const ids = [];
+                        if (channel.members && typeof channel.members.each === "function") {
+                            channel.members.each((m) => ids.push(String(m.id)));
+                        }
+                        if (ids.length === 0) return;
+                        ids.sort();
+                        const newLeaderId = ids[0];
+                        if (leaderIdRef.current !== newLeaderId) {
+                            leaderIdRef.current = newLeaderId;
+                            console.log("[LEADER] Fallback sort-based leader:", newLeaderId);
+                        }
+                        setIsLeader(me === newLeaderId);
                     }
-
-                    const isNowLeader = me === String(leaderIdRef.current);
-                    setIsLeader(isNowLeader);
                 } catch (e) {
                     console.error("[LEADER] recalc error", e);
-                    // 에러 시에도 리더를 false로 확정하기보다 보수적으로 유지/해제 중 택1
                     setIsLeader(false);
                 }
             };
