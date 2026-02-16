@@ -87,7 +87,14 @@ export const WebRTCProvider = ({ children }) => {
     const localStreamRef = useRef(null);
     const connectionsRef = useRef({});
     const remoteAudiosRef = useRef({});
-    const myIdRef = useRef(`채널-${Math.floor(1000 + Math.random() * 9000)}`);
+    // v137: Persistent User ID — 같은 기기에서 항상 동일한 ID 사용
+    const myIdRef = useRef(() => {
+        const stored = localStorage.getItem('safeon-userId');
+        if (stored) return stored;
+        const newId = `채널-${Math.floor(1000 + Math.random() * 9000)}`;
+        localStorage.setItem('safeon-userId', newId);
+        return newId;
+    })();
     const lastJoinedRoomRef = useRef(null); // v94: Loop prevention
     const audioContextRef = useRef(null);
     const analyserRef = useRef(null);
@@ -429,10 +436,9 @@ export const WebRTCProvider = ({ children }) => {
     const startSystem = useCallback(async (manualRoomId = null, inputPin = null) => {
         if (!manualRoomId) return;
 
-        // 1. Label/RoomKey Generation (Moved to top to fix 'label is not defined' error)
-        // v133: Split logic added as per user request
-        const label = String(manualRoomId || '').split('@@')[0] || '무전';
-        const pin = (inputPin || pinRef.current || '').trim();
+        // v137: @@ 파싱 완전 제거 — label과 pin은 항상 명시적으로 분리 전달
+        const label = String(manualRoomId || '').trim() || '무전';
+        const pin = (inputPin || '').trim(); // v137: pinRef fallback 제거 — 명시적 전달만 사용
 
         // 2. Room Key Generation (FNV-1a 32bit Hash - BACKEND MATCHING)
         let roomKey = label;

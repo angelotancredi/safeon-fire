@@ -510,10 +510,9 @@ const RadioButton = ({ rtc }) => {
                                             setIsCreating(true);
                                             // Delay modal close slightly to show feedback
                                             setTimeout(() => {
-                                                const formattedName = newRoomName.trim().toLowerCase().replace(/\s+/g, '-');
-                                                const roomId = `${formattedName}@@${newRoomPin}`;
-                                                updateSettings?.({ roomId });
-                                                startSystem(roomId);
+                                                const formattedName = newRoomName.trim();
+                                                // v137: @@ 제거 — PIN은 두 번째 인자로 명시적 전달
+                                                startSystem(formattedName, newRoomPin);
                                                 setIsModalOpen(false);
                                                 setIsCreating(false);
                                                 setNewRoomName('');
