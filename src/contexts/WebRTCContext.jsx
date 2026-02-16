@@ -782,6 +782,18 @@ export const WebRTCProvider = ({ children }) => {
                 });
             });
 
+            // ✅ v138: subscription_error — PIN 불일치 등 인증 실패 시 즉시 차단
+            channel.bind("pusher:subscription_error", (statusObj) => {
+                if (epoch !== epochRef.current) return;
+                const errStatus = statusObj?.status || statusObj || 'unknown';
+                addLog(`[보안] 채널 인증 실패 (${errStatus}) — 비밀번호를 확인하세요`);
+                setError(`인증 실패: 비밀번호가 틀렸거나 접근 권한이 없습니다.`);
+                setStatus('OFFLINE');
+                lastJoinedRoomRef.current = null;
+                if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                cleanup();
+            });
+
             // ✅ (B) 멤버 변동 이벤트마다 재계산
             channel.bind("pusher:member_added", (member) => {
                 if (epoch !== epochRef.current) return; // ✅ Epoch Guard
