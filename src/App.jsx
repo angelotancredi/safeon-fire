@@ -206,13 +206,11 @@ const NavButton = ({ icon, label, active, onClick }) => (
 const SquadView = ({ rtc }) => {
   const { peers, isConnected, peerId, talkingPeers, availableRooms, settings } = rtc;
 
-  // ✅ FIX 2 — SquadView 채널명 소스 통일 (단일 규칙)
-  const getLabel = (id) => String(id || '').split('@@')[0];
+  // v138: @@ 파싱 제거, 한글 라벨 우선
+  const getLabel = (id) => String(id || '');
 
-  // callsign도 동일 규칙 적용
   // v134: Explicitly use settings.roomLabel if available, '연결 중...' during transition
-  const getDisplayLabel = () => settings?.roomLabel || getLabel(settings.roomId) || '연결 중...';
-  const roomLabel = getDisplayLabel();
+  const roomLabel = settings?.roomLabel || '연결 중...';
 
   const shortId = (id) => (id ? String(id).slice(-4) : "----");
   const callsign = (id) => `${roomLabel}-${shortId(id)}`;
@@ -298,9 +296,7 @@ const SquadView = ({ rtc }) => {
                               {callsign(peerId)} <span className="opacity-40 text-[10px] ml-1">(YOU)</span>
                             </span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[9px] font-black text-tactical-accent uppercase">MASTER</span>
-                          </div>
+                          <div className="flex items-center gap-2" />
                         </div>
 
                         {/* Peers */}

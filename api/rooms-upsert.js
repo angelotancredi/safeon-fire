@@ -77,24 +77,19 @@ export default async function handler(req, res) {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-    // pin 처리 규칙:
-    // - pin이 "비어있지 않은 문자열"이면: pinHash 세팅(해시)
-    // - pin이 ""(빈문자) 또는 null 이면: pinHash 제거(잠금 해제)
-    // - pin이 undefined 이면: pin 관련 변경 없음
-    if (pinIn !== undefined) {
-      const pin = pinIn === null ? "" : String(pinIn).trim();
-
-      if (pin) {
-        data.pinHash = pbkdf2Hash(pin);
-      } else {
-        data.pinHash = admin.firestore.FieldValue.delete();
-      }
-    }
-
+    // v138: pin 처리 — 방 생성 시에만 pinHash 설정 (JOIN 시 덮어쓰기 방지!)
     if (!snap.exists) {
       data.createdAt = admin.firestore.FieldValue.serverTimestamp();
       // v136: Store room creator ID (only on first creation)
       if (userId) data.creatorId = userId;
+
+      // PIN은 방 생성 시에만 설정 — JOIN 시 다른 PIN으로 덮어쓰면 보안 구멍
+      if (pinIn !== undefined) {
+        const pin = pinIn === null ? "" : String(pinIn).trim();
+        if (pin) {
+          data.pinHash = pbkdf2Hash(pin);
+        }
+      }
     }
 
     await ref.set(data, { merge: true });
