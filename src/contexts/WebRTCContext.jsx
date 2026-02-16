@@ -581,6 +581,25 @@ export const WebRTCProvider = ({ children }) => {
                 console.warn("[Room-Upsert] Skipped or Failed:", e);
             }
 
+            // ✅ v135: PIN 사전검증 — hasPin인 방에 pin 없이 접속 시도 차단
+            try {
+                const checkRes = await fetch('/api/pusher/rooms');
+                if (checkRes.ok) {
+                    const { rooms: roomList } = await checkRes.json();
+                    const targetRoom = roomList.find(r => r.id === roomKey);
+                    if (targetRoom?.hasPin && !pin) {
+                        addLog(`[보안] PIN이 필요한 채널입니다: ${displayRoom}`);
+                        setError('PIN_REQUIRED: 이 채널은 비밀번호가 필요합니다.');
+                        setStatus('OFFLINE');
+                        lastJoinedRoomRef.current = null;
+                        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn("[PIN-Check] Skipped:", e);
+            }
+
             const pusher = new Pusher(PUSHER_CONFIG.key, {
                 cluster: PUSHER_CONFIG.cluster,
                 enabledTransports: ["ws", "wss"],

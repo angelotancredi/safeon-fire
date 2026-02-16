@@ -16,7 +16,7 @@ const RadioButton = ({ rtc }) => {
     // Helper functions for display
     // Helper functions for display
     // v134: Show '연결 중...' during channel transition (roomLabel is null)
-    const roomLabel = settings?.roomLabel || (settings?.roomId ? settings.roomId.split('@@')[0] : '연결 중...');
+    const roomLabel = settings?.roomLabel || '연결 중...';
     const shortId = (id) => (id ? String(id).slice(-4) : '----');
     const callsign = (id) => `${roomLabel}-${shortId(id)}`;
 
@@ -436,24 +436,24 @@ const RadioButton = ({ rtc }) => {
                                     </div>
                                 ) : availableRooms.length > 0 ? (
                                     availableRooms.map((room) => {
-                                        // v134: Prefer Backend Label > ID Parse
-                                        const displayName = room.label || room.id.split('@@')[0];
-                                        const password = room.id.split('@@')[1];
+                                        // v135: Always use room.label for Korean display
+                                        const displayName = room.label || room.id;
+                                        const hasPin = !!room.hasPin;
                                         return (
                                             <motion.button
                                                 key={room.id}
                                                 whileHover={{ x: 4 }}
                                                 whileTap={{ scale: 0.98 }}
                                                 onClick={() => {
-                                                    if (password) {
+                                                    if (hasPin) {
                                                         setKeypadMode('JOIN');
                                                         setKeypadRoom(room);
                                                         setIsKeypadOpen(true);
                                                         setInputPin('');
                                                         setPinError(false);
                                                     } else {
-                                                        // ✅ FIX 4 — 조인 시 settings.roomId 덮어쓰기 제거
-                                                        startSystem(room.id);
+                                                        // v135: 한글 라벨 기반 접속
+                                                        startSystem(room.label || room.id);
                                                         setIsModalOpen(false);
                                                         // v132: Force Refresh after join
                                                         setTimeout(() => fetchRooms(), 500);
@@ -468,7 +468,7 @@ const RadioButton = ({ rtc }) => {
                                                     <div>
                                                         <div className="text-base font-black text-tactical-fg group-hover:text-tactical-accent transition-colors uppercase tracking-tight flex items-center">
                                                             {displayName}
-                                                            {password && <span className="text-[8px] bg-tactical-accent/10 text-tactical-accent px-1.5 py-0.5 rounded-sm ml-2 font-black uppercase tracking-wider border border-tactical-accent/20">Secure</span>}
+                                                            {hasPin && <span className="text-[8px] bg-tactical-accent/10 text-tactical-accent px-1.5 py-0.5 rounded-sm ml-2 font-black uppercase tracking-wider border border-tactical-accent/20">Secure</span>}
                                                         </div>
                                                         <div className="text-[10px] font-bold text-tactical-muted uppercase tracking-widest">
                                                             Frequency: {displayName.length * 4}.{displayName.length} MHz
@@ -608,7 +608,7 @@ const RadioButton = ({ rtc }) => {
                                         {keypadMode === 'JOIN' ? '보안을 위해 비밀번호 4자리를 입력하세요' : '새 채널의 보안 비밀번호를 설정하세요'}
                                     </p>
                                     <p className="text-[10px] text-tactical-muted font-medium uppercase tracking-widest">
-                                        {keypadMode === 'JOIN' ? keypadRoom?.id.split('@@')[0] : (newRoomName || 'NEW CHANNEL')}
+                                        {keypadMode === 'JOIN' ? (keypadRoom?.label || keypadRoom?.id) : (newRoomName || 'NEW CHANNEL')}
                                     </p>
                                 </div>
 
@@ -656,24 +656,15 @@ const RadioButton = ({ rtc }) => {
                                                     // Auto-verification after 4th digit
                                                     if (nextPin.length === 4) {
                                                         if (keypadMode === 'JOIN') {
-                                                            const [_, correctPin] = keypadRoom.id.split('@@');
-                                                            if (nextPin === correctPin) {
-                                                                // Success logic
-                                                                setTimeout(() => {
-                                                                    const [rName, rPin] = keypadRoom.id.split('@@');
-                                                                    startSystem(rName, rPin);
-                                                                    setIsKeypadOpen(false);
-                                                                    setIsModalOpen(false);
-                                                                    // v132: Force Refresh after join
-                                                                    setTimeout(() => fetchRooms(), 500);
-                                                                }, 150);
-                                                            } else {
-                                                                // Error logic
-                                                                setTimeout(() => {
-                                                                    setPinError(true);
-                                                                    setInputPin('');
-                                                                }, 400);
-                                                            }
+                                                            // v135: PIN은 서버에서 검증 (pusher-auth.js)
+                                                            // 클라이언트는 PIN을 startSystem에 전달만 함
+                                                            setTimeout(() => {
+                                                                startSystem(keypadRoom.label || keypadRoom.id, nextPin);
+                                                                setIsKeypadOpen(false);
+                                                                setIsModalOpen(false);
+                                                                // v132: Force Refresh after join
+                                                                setTimeout(() => fetchRooms(), 500);
+                                                            }, 150);
                                                         } else {
                                                             // CREATE Mode Logic
                                                             setTimeout(() => {
