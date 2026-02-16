@@ -88,13 +88,12 @@ export const WebRTCProvider = ({ children }) => {
     const connectionsRef = useRef({});
     const remoteAudiosRef = useRef({});
     // v137: Persistent User ID — 같은 기기에서 항상 동일한 ID 사용
-    const myIdRef = useRef(() => {
-        const stored = localStorage.getItem('safeon-userId');
-        if (stored) return stored;
+    const _savedUserId = localStorage.getItem('safeon-userId') || (() => {
         const newId = `채널-${Math.floor(1000 + Math.random() * 9000)}`;
         localStorage.setItem('safeon-userId', newId);
         return newId;
     })();
+    const myIdRef = useRef(_savedUserId);
     const lastJoinedRoomRef = useRef(null); // v94: Loop prevention
     const audioContextRef = useRef(null);
     const analyserRef = useRef(null);
