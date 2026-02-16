@@ -579,7 +579,7 @@ export const WebRTCProvider = ({ children }) => {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        label: settings.roomLabel || label,
+                        label: label, // v139: MUST use closure `label`, not stale `settings.roomLabel`
                         pin: (pinRef.current || "").trim(),
                         userId: myIdRef.current, // v136: Track room creator
                     }),
